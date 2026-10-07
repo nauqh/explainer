@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+/* Paper, ink, one signal colour (cobalt) and one highlighter (marigold).
+   The highlighter is the only loud thing: it ties a word to a part of the picture. */
+:root {
+  --paper: #f4f6f3;
+  --plate: #ffffff;
+  --ink: #1c2427;
+  --ink-soft: #56626a;
+  --rule: #cbd3cf;
+  --cobalt: #2747c9;
+  --cobalt-soft: #dfe5fb;
+  --marker: #f2c230;
+  --marker-soft: #f9e7a6;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-plate: var(--plate);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-rule: var(--rule);
+  --color-cobalt: var(--cobalt);
+  --color-cobalt-soft: var(--cobalt-soft);
+  --color-marker: var(--marker);
+  --color-marker-soft: var(--marker-soft);
+  --font-serif: var(--font-literata);
+  --font-sans: var(--font-instrument);
+}
+
+html {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+body {
+  font-family: var(--font-literata), Georgia, serif;
+  font-size: 1.1875rem;
+  line-height: 1.65;
+  font-optical-sizing: auto;
+}
+
+:focus-visible {
+  outline: 2px solid var(--cobalt);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Inline markup. A part link is a word with a dotted cobalt underline; when it or its
+   widget part is active it gets the highlighter band, and so does the part. */
+.mk-part {
+  font: inherit;
+  color: inherit;
+  text-decoration: underline dotted var(--cobalt) 2px;
+  text-underline-offset: 0.22em;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background-size 300ms ease;
+  background: linear-gradient(var(--marker), var(--marker)) no-repeat 0 85% / 0% 0.55em;
+}
+.mk-part[aria-pressed="true"],
+.mk-part:hover {
+  background-size: 100% 0.55em;
+  text-decoration-color: transparent;
+}
+.mk-term {
+  font: inherit;
+  color: inherit;
+  text-decoration: underline dashed var(--ink-soft) 1px;
+  text-underline-offset: 0.22em;
+  cursor: help;
+}
+.mk-source {
+  font-family: var(--font-instrument), sans-serif;
+  font-size: 0.7em;
+  vertical-align: super;
+  line-height: 0;
+  color: var(--cobalt);
+  margin-left: 0.1em;
+}
+.mk-value {
+  font-family: var(--font-instrument), sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--cobalt);
+}
+
+/* Glossary popover, positioned by script next to its term. */
+.term-pop {
+  margin: 0;
+  max-width: 22rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--plate);
+  color: var(--ink);
+  font-family: var(--font-instrument), sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  box-shadow: 0 6px 24px -12px rgb(28 36 39 / 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-part { transition: none; }
+}

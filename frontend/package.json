@@ -1,0 +1,41 @@
+{
+  "name": "frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "pnpm gen && next build",
+    "start": "next start",
+    "lint": "eslint",
+    "gen:types": "json2ts -i ../backend/schema/lesson.schema.json -o src/lib/lesson.ts --additionalProperties false --maxItems -1",
+    "gen:fixture": "node -e \"require('fs').mkdirSync('src/fixtures',{recursive:true});require('fs').copyFileSync('../backend/tests/fixtures/synthetic.json','src/fixtures/synthetic.json')\"",
+    "gen": "pnpm gen:types && pnpm gen:fixture",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "d3-scale": "^4.0.2",
+    "d3-shape": "^3.2.0",
+    "motion": "^14.0.0",
+    "next": "16.4.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-scrollama": "^2.4.2",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "^4",
+    "@types/d3-scale": "^4.0.9",
+    "@types/d3-shape": "^3.2.0",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.0",
+    "json-schema-to-typescript": "^16.0.0",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^5.0.3"
+  },
+  "packageManager": "pnpm@10.28.2"
+}

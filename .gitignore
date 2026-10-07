@@ -1,0 +1,13 @@
+# secrets
+.env
+.env.*
+
+# live agent status (see AGENTS.md)
+.agents/status/
+
+# python
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.db

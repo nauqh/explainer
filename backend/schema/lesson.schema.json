@@ -1,0 +1,1600 @@
+{
+  "$defs": {
+    "Actor": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 30,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "Actor",
+      "type": "object"
+    },
+    "Axis": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "maxLength": 30,
+          "title": "Label",
+          "type": "string"
+        },
+        "min": {
+          "title": "Min",
+          "type": "number"
+        },
+        "max": {
+          "title": "Max",
+          "type": "number"
+        }
+      },
+      "required": [
+        "label",
+        "min",
+        "max"
+      ],
+      "title": "Axis",
+      "type": "object"
+    },
+    "Card": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "body": {
+          "title": "Body",
+          "type": "string"
+        },
+        "tag": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tag"
+        }
+      },
+      "required": [
+        "title",
+        "body",
+        "tag"
+      ],
+      "title": "Card",
+      "type": "object"
+    },
+    "Cards": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "cards",
+          "title": "Type",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/Card"
+          },
+          "maxItems": 4,
+          "minItems": 1,
+          "title": "Items",
+          "type": "array"
+        },
+        "covers": {
+          "items": {
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+            "type": "string"
+          },
+          "title": "Covers",
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "items",
+        "covers"
+      ],
+      "title": "Cards",
+      "type": "object"
+    },
+    "Column": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 30,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title"
+      ],
+      "title": "Column",
+      "type": "object"
+    },
+    "CompareProps": {
+      "additionalProperties": false,
+      "properties": {
+        "columns": {
+          "items": {
+            "$ref": "#/$defs/Column"
+          },
+          "maxItems": 4,
+          "minItems": 2,
+          "title": "Columns",
+          "type": "array"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/Row"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Rows",
+          "type": "array"
+        }
+      },
+      "required": [
+        "columns",
+        "rows"
+      ],
+      "title": "CompareProps",
+      "type": "object"
+    },
+    "CompareVisual": {
+      "additionalProperties": false,
+      "properties": {
+        "widget": {
+          "const": "Compare",
+          "title": "Widget",
+          "type": "string"
+        },
+        "props": {
+          "$ref": "#/$defs/CompareProps"
+        }
+      },
+      "required": [
+        "widget",
+        "props"
+      ],
+      "title": "CompareVisual",
+      "type": "object"
+    },
+    "ConfusionRecipe": {
+      "additionalProperties": false,
+      "properties": {
+        "recipe": {
+          "const": "confusion",
+          "title": "Recipe",
+          "type": "string"
+        },
+        "classes": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 6,
+          "minItems": 2,
+          "title": "Classes",
+          "type": "array"
+        },
+        "actual": {
+          "description": "Class index per example.",
+          "items": {
+            "type": "integer"
+          },
+          "maxItems": 200,
+          "minItems": 1,
+          "title": "Actual",
+          "type": "array"
+        },
+        "predicted": {
+          "description": "Class index per example.",
+          "items": {
+            "type": "integer"
+          },
+          "maxItems": 200,
+          "minItems": 1,
+          "title": "Predicted",
+          "type": "array"
+        }
+      },
+      "required": [
+        "recipe",
+        "classes",
+        "actual",
+        "predicted"
+      ],
+      "title": "ConfusionRecipe",
+      "type": "object"
+    },
+    "DiagramProps": {
+      "additionalProperties": false,
+      "properties": {
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/Node"
+          },
+          "maxItems": 12,
+          "minItems": 2,
+          "title": "Nodes",
+          "type": "array"
+        },
+        "edges": {
+          "items": {
+            "$ref": "#/$defs/Edge"
+          },
+          "maxItems": 20,
+          "title": "Edges",
+          "type": "array"
+        },
+        "groups": {
+          "items": {
+            "$ref": "#/$defs/Group"
+          },
+          "maxItems": 4,
+          "title": "Groups",
+          "type": "array"
+        }
+      },
+      "required": [
+        "nodes",
+        "edges",
+        "groups"
+      ],
+      "title": "DiagramProps",
+      "type": "object"
+    },
+    "DiagramVisual": {
+      "additionalProperties": false,
+      "properties": {
+        "widget": {
+          "const": "Diagram",
+          "title": "Widget",
+          "type": "string"
+        },
+        "props": {
+          "$ref": "#/$defs/DiagramProps"
+        }
+      },
+      "required": [
+        "widget",
+        "props"
+      ],
+      "title": "DiagramVisual",
+      "type": "object"
+    },
+    "DotProductRecipe": {
+      "additionalProperties": false,
+      "properties": {
+        "recipe": {
+          "const": "dot-product",
+          "title": "Recipe",
+          "type": "string"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/Vector"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Rows",
+          "type": "array"
+        },
+        "cols": {
+          "items": {
+            "$ref": "#/$defs/Vector"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Cols",
+          "type": "array"
+        }
+      },
+      "required": [
+        "recipe",
+        "rows",
+        "cols"
+      ],
+      "title": "DotProductRecipe",
+      "type": "object"
+    },
+    "Edge": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "from": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+          "title": "From",
+          "type": "string"
+        },
+        "to": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+          "title": "To",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        }
+      },
+      "required": [
+        "id",
+        "from",
+        "to",
+        "label"
+      ],
+      "title": "Edge",
+      "type": "object"
+    },
+    "ExploreScene": {
+      "additionalProperties": false,
+      "properties": {
+        "layout": {
+          "const": "explore",
+          "title": "Layout",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "visual": {
+          "discriminator": {
+            "mapping": {
+              "Compare": "#/$defs/CompareVisual",
+              "Diagram": "#/$defs/DiagramVisual",
+              "FunctionPlot": "#/$defs/FunctionPlotVisual",
+              "Matrix": "#/$defs/MatrixVisual",
+              "Sequence": "#/$defs/SequenceVisual"
+            },
+            "propertyName": "widget"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/DiagramVisual"
+            },
+            {
+              "$ref": "#/$defs/SequenceVisual"
+            },
+            {
+              "$ref": "#/$defs/CompareVisual"
+            },
+            {
+              "$ref": "#/$defs/FunctionPlotVisual"
+            },
+            {
+              "$ref": "#/$defs/MatrixVisual"
+            }
+          ],
+          "title": "Visual"
+        },
+        "state": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": "Default value for every state key the widget reads.",
+          "title": "State",
+          "type": "object"
+        },
+        "controls": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "select": "#/$defs/Select",
+                "slider": "#/$defs/Slider"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/Slider"
+              },
+              {
+                "$ref": "#/$defs/Select"
+              }
+            ]
+          },
+          "title": "Controls",
+          "type": "array"
+        },
+        "task": {
+          "title": "Task",
+          "type": "string"
+        }
+      },
+      "required": [
+        "layout",
+        "id",
+        "title",
+        "visual",
+        "state",
+        "controls",
+        "task"
+      ],
+      "title": "ExploreScene",
+      "type": "object"
+    },
+    "FunctionPlotProps": {
+      "additionalProperties": false,
+      "properties": {
+        "expression": {
+          "description": "y as a function of x and the parameters, e.g. 'a * x^2 + b'.",
+          "maxLength": 200,
+          "title": "Expression",
+          "type": "string"
+        },
+        "x": {
+          "$ref": "#/$defs/Axis"
+        },
+        "y": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Axis"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Omit to fit the y axis to the curve."
+        },
+        "params": {
+          "items": {
+            "$ref": "#/$defs/Param"
+          },
+          "maxItems": 4,
+          "title": "Params",
+          "type": "array"
+        }
+      },
+      "required": [
+        "expression",
+        "x",
+        "y",
+        "params"
+      ],
+      "title": "FunctionPlotProps",
+      "type": "object"
+    },
+    "FunctionPlotVisual": {
+      "additionalProperties": false,
+      "properties": {
+        "widget": {
+          "const": "FunctionPlot",
+          "title": "Widget",
+          "type": "string"
+        },
+        "props": {
+          "$ref": "#/$defs/FunctionPlotProps"
+        }
+      },
+      "required": [
+        "widget",
+        "props"
+      ],
+      "title": "FunctionPlotVisual",
+      "type": "object"
+    },
+    "Group": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 40,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "Group",
+      "type": "object"
+    },
+    "KeyPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "sources": {
+          "description": "Source ids; required when the lesson is time-sensitive.",
+          "items": {
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+            "type": "string"
+          },
+          "title": "Sources",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "sources"
+      ],
+      "title": "KeyPoint",
+      "type": "object"
+    },
+    "MatrixVisual": {
+      "additionalProperties": false,
+      "properties": {
+        "widget": {
+          "const": "Matrix",
+          "title": "Widget",
+          "type": "string"
+        },
+        "props": {
+          "discriminator": {
+            "mapping": {
+              "confusion": "#/$defs/ConfusionRecipe",
+              "dot-product": "#/$defs/DotProductRecipe",
+              "softmax": "#/$defs/SoftmaxRecipe"
+            },
+            "propertyName": "recipe"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/SoftmaxRecipe"
+            },
+            {
+              "$ref": "#/$defs/DotProductRecipe"
+            },
+            {
+              "$ref": "#/$defs/ConfusionRecipe"
+            }
+          ],
+          "title": "Props"
+        }
+      },
+      "required": [
+        "widget",
+        "props"
+      ],
+      "title": "MatrixVisual",
+      "type": "object"
+    },
+    "Message": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "from": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+          "title": "From",
+          "type": "string"
+        },
+        "to": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+          "title": "To",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 80,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "from",
+        "to",
+        "text"
+      ],
+      "title": "Message",
+      "type": "object"
+    },
+    "Misconception": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "text"
+      ],
+      "title": "Misconception",
+      "type": "object"
+    },
+    "Node": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 40,
+          "title": "Label",
+          "type": "string"
+        },
+        "group": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Group"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "group"
+      ],
+      "title": "Node",
+      "type": "object"
+    },
+    "Param": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "An identifier other than x.",
+          "pattern": "^[a-wyz][A-Za-z0-9]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 30,
+          "title": "Label",
+          "type": "string"
+        },
+        "min": {
+          "title": "Min",
+          "type": "number"
+        },
+        "max": {
+          "title": "Max",
+          "type": "number"
+        }
+      },
+      "required": [
+        "name",
+        "label",
+        "min",
+        "max"
+      ],
+      "title": "Param",
+      "type": "object"
+    },
+    "Predict": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "predict",
+          "title": "Type",
+          "type": "string"
+        },
+        "question": {
+          "title": "Question",
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 5,
+          "minItems": 2,
+          "title": "Options",
+          "type": "array"
+        },
+        "answer": {
+          "description": "Index into options.",
+          "title": "Answer",
+          "type": "integer"
+        },
+        "hint": {
+          "title": "Hint",
+          "type": "string"
+        },
+        "explanation": {
+          "title": "Explanation",
+          "type": "string"
+        },
+        "misconception": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+          "title": "Misconception",
+          "type": "string"
+        },
+        "covers": {
+          "items": {
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+            "type": "string"
+          },
+          "title": "Covers",
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "question",
+        "options",
+        "answer",
+        "hint",
+        "explanation",
+        "misconception",
+        "covers"
+      ],
+      "title": "Predict",
+      "type": "object"
+    },
+    "Prose": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "prose",
+          "title": "Type",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "covers": {
+          "items": {
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+            "type": "string"
+          },
+          "title": "Covers",
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "text",
+        "covers"
+      ],
+      "title": "Prose",
+      "type": "object"
+    },
+    "Recall": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "recall",
+          "title": "Type",
+          "type": "string"
+        },
+        "prompt": {
+          "title": "Prompt",
+          "type": "string"
+        },
+        "keyPoints": {
+          "items": {
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Keypoints",
+          "type": "array"
+        },
+        "minWords": {
+          "minimum": 1,
+          "title": "Minwords",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "prompt",
+        "keyPoints",
+        "minWords"
+      ],
+      "title": "Recall",
+      "type": "object"
+    },
+    "Row": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "maxLength": 30,
+          "title": "Label",
+          "type": "string"
+        },
+        "cells": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Cells",
+          "type": "array"
+        }
+      },
+      "required": [
+        "label",
+        "cells"
+      ],
+      "title": "Row",
+      "type": "object"
+    },
+    "ScrollyScene": {
+      "additionalProperties": false,
+      "properties": {
+        "layout": {
+          "const": "scrolly",
+          "title": "Layout",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "visual": {
+          "discriminator": {
+            "mapping": {
+              "Compare": "#/$defs/CompareVisual",
+              "Diagram": "#/$defs/DiagramVisual",
+              "FunctionPlot": "#/$defs/FunctionPlotVisual",
+              "Matrix": "#/$defs/MatrixVisual",
+              "Sequence": "#/$defs/SequenceVisual"
+            },
+            "propertyName": "widget"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/DiagramVisual"
+            },
+            {
+              "$ref": "#/$defs/SequenceVisual"
+            },
+            {
+              "$ref": "#/$defs/CompareVisual"
+            },
+            {
+              "$ref": "#/$defs/FunctionPlotVisual"
+            },
+            {
+              "$ref": "#/$defs/MatrixVisual"
+            }
+          ],
+          "title": "Visual"
+        },
+        "state": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": "Default value for every state key the widget reads.",
+          "title": "State",
+          "type": "object"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/Step"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Steps",
+          "type": "array"
+        }
+      },
+      "required": [
+        "layout",
+        "id",
+        "title",
+        "visual",
+        "state",
+        "steps"
+      ],
+      "title": "ScrollyScene",
+      "type": "object"
+    },
+    "Select": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "select",
+          "title": "Kind",
+          "type": "string"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "minItems": 2,
+          "title": "Options",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "key",
+        "label",
+        "options"
+      ],
+      "title": "Select",
+      "type": "object"
+    },
+    "SequenceProps": {
+      "additionalProperties": false,
+      "properties": {
+        "actors": {
+          "items": {
+            "$ref": "#/$defs/Actor"
+          },
+          "maxItems": 6,
+          "minItems": 2,
+          "title": "Actors",
+          "type": "array"
+        },
+        "messages": {
+          "items": {
+            "$ref": "#/$defs/Message"
+          },
+          "maxItems": 16,
+          "minItems": 1,
+          "title": "Messages",
+          "type": "array"
+        }
+      },
+      "required": [
+        "actors",
+        "messages"
+      ],
+      "title": "SequenceProps",
+      "type": "object"
+    },
+    "SequenceVisual": {
+      "additionalProperties": false,
+      "properties": {
+        "widget": {
+          "const": "Sequence",
+          "title": "Widget",
+          "type": "string"
+        },
+        "props": {
+          "$ref": "#/$defs/SequenceProps"
+        }
+      },
+      "required": [
+        "widget",
+        "props"
+      ],
+      "title": "SequenceVisual",
+      "type": "object"
+    },
+    "Slider": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "slider",
+          "title": "Kind",
+          "type": "string"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "min": {
+          "title": "Min",
+          "type": "number"
+        },
+        "max": {
+          "title": "Max",
+          "type": "number"
+        },
+        "step": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Step"
+        }
+      },
+      "required": [
+        "kind",
+        "key",
+        "label",
+        "min",
+        "max",
+        "step"
+      ],
+      "title": "Slider",
+      "type": "object"
+    },
+    "SoftmaxRecipe": {
+      "additionalProperties": false,
+      "properties": {
+        "recipe": {
+          "const": "softmax",
+          "title": "Recipe",
+          "type": "string"
+        },
+        "rows": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Rows",
+          "type": "array"
+        },
+        "cols": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "minItems": 2,
+          "title": "Cols",
+          "type": "array"
+        },
+        "scores": {
+          "description": "Raw scores, one row per row label; each row is softmaxed.",
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "title": "Scores",
+          "type": "array"
+        }
+      },
+      "required": [
+        "recipe",
+        "rows",
+        "cols",
+        "scores"
+      ],
+      "title": "SoftmaxRecipe",
+      "type": "object"
+    },
+    "Sort": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "sort",
+          "title": "Type",
+          "type": "string"
+        },
+        "question": {
+          "title": "Question",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "minItems": 2,
+          "title": "Items",
+          "type": "array"
+        },
+        "buckets": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 4,
+          "minItems": 2,
+          "title": "Buckets",
+          "type": "array"
+        },
+        "answer": {
+          "description": "Bucket index for each item, in item order.",
+          "items": {
+            "type": "integer"
+          },
+          "title": "Answer",
+          "type": "array"
+        },
+        "hint": {
+          "title": "Hint",
+          "type": "string"
+        },
+        "explanation": {
+          "title": "Explanation",
+          "type": "string"
+        },
+        "misconception": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+          "title": "Misconception",
+          "type": "string"
+        },
+        "covers": {
+          "items": {
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+            "type": "string"
+          },
+          "title": "Covers",
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "question",
+        "items",
+        "buckets",
+        "answer",
+        "hint",
+        "explanation",
+        "misconception",
+        "covers"
+      ],
+      "title": "Sort",
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "url": {
+          "pattern": "^https?://",
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "url"
+      ],
+      "title": "Source",
+      "type": "object"
+    },
+    "StackScene": {
+      "additionalProperties": false,
+      "properties": {
+        "layout": {
+          "const": "stack",
+          "title": "Layout",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "blocks": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "cards": "#/$defs/Cards",
+                "predict": "#/$defs/Predict",
+                "prose": "#/$defs/Prose",
+                "recall": "#/$defs/Recall",
+                "sort": "#/$defs/Sort"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/Prose"
+              },
+              {
+                "$ref": "#/$defs/Cards"
+              },
+              {
+                "$ref": "#/$defs/Predict"
+              },
+              {
+                "$ref": "#/$defs/Sort"
+              },
+              {
+                "$ref": "#/$defs/Recall"
+              }
+            ]
+          },
+          "minItems": 1,
+          "title": "Blocks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "layout",
+        "id",
+        "title",
+        "blocks"
+      ],
+      "title": "StackScene",
+      "type": "object"
+    },
+    "Step": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "description": "At most 40 words. Markup: [[part:id|label]], [[term:id|label]], [[source:id|label]], {stateKey}.",
+          "title": "Text",
+          "type": "string"
+        },
+        "set": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": "State changes on top of the scene defaults; not accumulated from earlier steps.",
+          "title": "Set",
+          "type": "object"
+        },
+        "highlight": {
+          "description": "Widget part ids.",
+          "items": {
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+            "type": "string"
+          },
+          "title": "Highlight",
+          "type": "array"
+        },
+        "covers": {
+          "description": "Key point ids.",
+          "items": {
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+            "type": "string"
+          },
+          "title": "Covers",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "set",
+        "highlight",
+        "covers"
+      ],
+      "title": "Step",
+      "type": "object"
+    },
+    "Term": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "definition": {
+          "title": "Definition",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "definition"
+      ],
+      "title": "Term",
+      "type": "object"
+    },
+    "Vector": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "maxLength": 20,
+          "title": "Label",
+          "type": "string"
+        },
+        "values": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Values",
+          "type": "array"
+        }
+      },
+      "required": [
+        "label",
+        "values"
+      ],
+      "title": "Vector",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": "0.3",
+      "title": "Schemaversion",
+      "type": "string"
+    },
+    "question": {
+      "title": "Question",
+      "type": "string"
+    },
+    "concept": {
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+      "title": "Concept",
+      "type": "string"
+    },
+    "focus": {
+      "title": "Focus",
+      "type": "string"
+    },
+    "level": {
+      "default": "intermediate",
+      "enum": [
+        "beginner",
+        "intermediate",
+        "advanced"
+      ],
+      "title": "Level",
+      "type": "string"
+    },
+    "timeSensitive": {
+      "title": "Timesensitive",
+      "type": "boolean"
+    },
+    "mode": {
+      "default": "auto",
+      "enum": [
+        "auto",
+        "scrolly",
+        "stepper"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "keyPoints": {
+      "items": {
+        "$ref": "#/$defs/KeyPoint"
+      },
+      "minItems": 1,
+      "title": "Keypoints",
+      "type": "array"
+    },
+    "misconceptions": {
+      "items": {
+        "$ref": "#/$defs/Misconception"
+      },
+      "title": "Misconceptions",
+      "type": "array"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/Source"
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "terms": {
+      "items": {
+        "$ref": "#/$defs/Term"
+      },
+      "title": "Terms",
+      "type": "array"
+    },
+    "scenes": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "explore": "#/$defs/ExploreScene",
+            "scrolly": "#/$defs/ScrollyScene",
+            "stack": "#/$defs/StackScene"
+          },
+          "propertyName": "layout"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/ScrollyScene"
+          },
+          {
+            "$ref": "#/$defs/ExploreScene"
+          },
+          {
+            "$ref": "#/$defs/StackScene"
+          }
+        ]
+      },
+      "minItems": 1,
+      "title": "Scenes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "question",
+    "concept",
+    "focus",
+    "level",
+    "timeSensitive",
+    "mode",
+    "keyPoints",
+    "misconceptions",
+    "sources",
+    "terms",
+    "scenes"
+  ],
+  "title": "Lesson",
+  "type": "object"
+}

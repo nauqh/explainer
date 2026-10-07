@@ -1,0 +1,657 @@
+{
+  "schemaVersion": "0.3",
+  "question": "how does attention decide which words matter?",
+  "concept": "attention",
+  "focus": "attention-weights",
+  "level": "intermediate",
+  "timeSensitive": true,
+  "mode": "auto",
+  "keyPoints": [
+    {
+      "id": "kp-qkv",
+      "text": "Each token makes a query, a key and a value from its embedding through learned projections.",
+      "sources": [
+        "vaswani"
+      ]
+    },
+    {
+      "id": "kp-scores",
+      "text": "A token's query is compared with every key; a higher dot product means more relevant.",
+      "sources": [
+        "vaswani"
+      ]
+    },
+    {
+      "id": "kp-softmax",
+      "text": "Softmax turns each row of scores into weights that sum to 1.",
+      "sources": [
+        "vaswani"
+      ]
+    },
+    {
+      "id": "kp-mix",
+      "text": "A token's output is the weighted sum of all the values.",
+      "sources": [
+        "vaswani"
+      ]
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "attention-picks-one",
+      "text": "Attention picks exactly one word to look at."
+    },
+    {
+      "id": "keys-equal-values",
+      "text": "A token's key and value are the same vector."
+    }
+  ],
+  "sources": [
+    {
+      "id": "vaswani",
+      "title": "Attention Is All You Need (Vaswani et al., 2017)",
+      "url": "https://arxiv.org/abs/1706.03762"
+    }
+  ],
+  "terms": [
+    {
+      "id": "query",
+      "label": "query",
+      "definition": "What a token is looking for, as a vector."
+    },
+    {
+      "id": "key",
+      "label": "key",
+      "definition": "What a token offers to be matched against, as a vector."
+    },
+    {
+      "id": "value",
+      "label": "value",
+      "definition": "The content a token contributes when it is attended to."
+    },
+    {
+      "id": "softmax",
+      "label": "softmax",
+      "definition": "A function that turns a list of scores into positive weights that sum to 1."
+    }
+  ],
+  "scenes": [
+    {
+      "layout": "scrolly",
+      "id": "pipeline",
+      "title": "From words to weights",
+      "visual": {
+        "widget": "Diagram",
+        "props": {
+          "nodes": [
+            {
+              "id": "emb",
+              "label": "Embeddings",
+              "group": null
+            },
+            {
+              "id": "q",
+              "label": "Queries",
+              "group": "proj"
+            },
+            {
+              "id": "k",
+              "label": "Keys",
+              "group": "proj"
+            },
+            {
+              "id": "v",
+              "label": "Values",
+              "group": "proj"
+            },
+            {
+              "id": "scores",
+              "label": "Scores",
+              "group": null
+            },
+            {
+              "id": "sm",
+              "label": "Softmax",
+              "group": null
+            },
+            {
+              "id": "out",
+              "label": "Output",
+              "group": null
+            }
+          ],
+          "edges": [
+            {
+              "id": "e-emb-q",
+              "from": "emb",
+              "to": "q",
+              "label": null
+            },
+            {
+              "id": "e-emb-k",
+              "from": "emb",
+              "to": "k",
+              "label": null
+            },
+            {
+              "id": "e-emb-v",
+              "from": "emb",
+              "to": "v",
+              "label": null
+            },
+            {
+              "id": "e-q-scores",
+              "from": "q",
+              "to": "scores",
+              "label": "dot product"
+            },
+            {
+              "id": "e-k-scores",
+              "from": "k",
+              "to": "scores",
+              "label": null
+            },
+            {
+              "id": "e-scores-sm",
+              "from": "scores",
+              "to": "sm",
+              "label": null
+            },
+            {
+              "id": "e-sm-out",
+              "from": "sm",
+              "to": "out",
+              "label": "weights"
+            },
+            {
+              "id": "e-v-out",
+              "from": "v",
+              "to": "out",
+              "label": null
+            }
+          ],
+          "groups": [
+            {
+              "id": "proj",
+              "label": "Learned projections"
+            }
+          ]
+        }
+      },
+      "state": {
+        "visible": 1,
+        "focus": null
+      },
+      "steps": [
+        {
+          "id": "p-emb",
+          "text": "Every token starts as an [[part:emb|embedding]], a list of numbers.",
+          "set": {},
+          "highlight": [
+            "emb"
+          ],
+          "covers": []
+        },
+        {
+          "id": "p-qkv",
+          "text": "From it, each token makes a [[term:query|query]], a [[term:key|key]] and a [[term:value|value]].",
+          "set": {
+            "visible": 4
+          },
+          "highlight": [
+            "q",
+            "k",
+            "v"
+          ],
+          "covers": [
+            "kp-qkv"
+          ]
+        },
+        {
+          "id": "p-scores",
+          "text": "Each query meets every key, and the dot products become [[part:scores|scores]].",
+          "set": {
+            "visible": 5
+          },
+          "highlight": [
+            "scores"
+          ],
+          "covers": [
+            "kp-scores"
+          ]
+        },
+        {
+          "id": "p-out",
+          "text": "[[term:softmax|Softmax]] turns the scores into weights, and the weights mix the values into the [[part:out|output]].",
+          "set": {
+            "visible": 7
+          },
+          "highlight": [
+            "sm",
+            "out"
+          ],
+          "covers": [
+            "kp-softmax",
+            "kp-mix"
+          ]
+        },
+        {
+          "id": "p-proj",
+          "text": "The [[part:proj|projections]] are learned weight matrices ([[source:vaswani|the original paper]]).",
+          "set": {
+            "visible": 7,
+            "focus": "proj"
+          },
+          "highlight": [
+            "proj"
+          ],
+          "covers": [
+            "kp-qkv"
+          ]
+        }
+      ]
+    },
+    {
+      "layout": "scrolly",
+      "id": "weights",
+      "title": "A row of weights per token",
+      "visual": {
+        "widget": "Matrix",
+        "props": {
+          "recipe": "softmax",
+          "rows": [
+            "the",
+            "cat",
+            "sat"
+          ],
+          "cols": [
+            "the",
+            "cat",
+            "sat"
+          ],
+          "scores": [
+            [
+              2.0,
+              0.5,
+              0.1
+            ],
+            [
+              0.3,
+              2.5,
+              1.2
+            ],
+            [
+              0.2,
+              1.8,
+              2.2
+            ]
+          ]
+        }
+      },
+      "state": {
+        "selected": null
+      },
+      "steps": [
+        {
+          "id": "w-rows",
+          "text": "Each row is one token's scores after [[term:softmax|softmax]]. Every row sums to 1.",
+          "set": {},
+          "highlight": [
+            "row-2"
+          ],
+          "covers": [
+            "kp-softmax"
+          ]
+        },
+        {
+          "id": "w-cell",
+          "text": "Look at [[part:cell-2-1|how much sat attends to cat]]: a large share, but not all of it.",
+          "set": {
+            "selected": "cell-2-1"
+          },
+          "highlight": [
+            "cell-2-1"
+          ],
+          "covers": [
+            "kp-scores"
+          ]
+        }
+      ]
+    },
+    {
+      "layout": "scrolly",
+      "id": "sharpness",
+      "title": "Sharp or soft",
+      "visual": {
+        "widget": "FunctionPlot",
+        "props": {
+          "expression": "exp(x / t) / (exp(x / t) + exp(1 / t))",
+          "x": {
+            "label": "score of word A",
+            "min": -2.0,
+            "max": 4.0
+          },
+          "y": {
+            "label": "weight on word A",
+            "min": 0.0,
+            "max": 1.0
+          },
+          "params": [
+            {
+              "name": "t",
+              "label": "temperature",
+              "min": 0.2,
+              "max": 5.0
+            }
+          ]
+        }
+      },
+      "state": {
+        "t": 1
+      },
+      "steps": [
+        {
+          "id": "s-base",
+          "text": "With two words, the weight on word A depends on its score. At temperature {t} the [[part:curve|curve]] rises smoothly.",
+          "set": {},
+          "highlight": [
+            "curve"
+          ],
+          "covers": [
+            "kp-softmax"
+          ]
+        },
+        {
+          "id": "s-sharp",
+          "text": "Lower the temperature and softmax gets sharp: one word takes almost all the weight.",
+          "set": {
+            "t": 0.2
+          },
+          "highlight": [
+            "curve"
+          ],
+          "covers": []
+        },
+        {
+          "id": "s-soft",
+          "text": "Raise it and the weights even out.",
+          "set": {
+            "t": 5
+          },
+          "highlight": [
+            "curve"
+          ],
+          "covers": []
+        }
+      ]
+    },
+    {
+      "layout": "scrolly",
+      "id": "one-token",
+      "title": "One token, step by step",
+      "visual": {
+        "widget": "Sequence",
+        "props": {
+          "actors": [
+            {
+              "id": "sat",
+              "label": "sat (query)"
+            },
+            {
+              "id": "the",
+              "label": "the (key)"
+            },
+            {
+              "id": "cat",
+              "label": "cat (key)"
+            },
+            {
+              "id": "out",
+              "label": "output"
+            }
+          ],
+          "messages": [
+            {
+              "id": "m-the",
+              "from": "sat",
+              "to": "the",
+              "text": "compare query with key"
+            },
+            {
+              "id": "m-cat",
+              "from": "sat",
+              "to": "cat",
+              "text": "compare query with key"
+            },
+            {
+              "id": "m-mix",
+              "from": "sat",
+              "to": "out",
+              "text": "weighted sum of the values"
+            }
+          ]
+        }
+      },
+      "state": {
+        "upTo": "m-the"
+      },
+      "steps": [
+        {
+          "id": "t-the",
+          "text": "The token sat compares its [[term:query|query]] with [[part:the|the key of the]].",
+          "set": {},
+          "highlight": [
+            "m-the"
+          ],
+          "covers": [
+            "kp-scores"
+          ]
+        },
+        {
+          "id": "t-cat",
+          "text": "Then with the key of cat. Each comparison gives one score.",
+          "set": {
+            "upTo": "m-cat"
+          },
+          "highlight": [
+            "m-cat"
+          ],
+          "covers": [
+            "kp-scores"
+          ]
+        },
+        {
+          "id": "t-mix",
+          "text": "The weights then [[part:m-mix|mix the values]] into a new vector for sat.",
+          "set": {
+            "upTo": "m-mix"
+          },
+          "highlight": [
+            "m-mix"
+          ],
+          "covers": [
+            "kp-mix"
+          ]
+        }
+      ]
+    },
+    {
+      "layout": "scrolly",
+      "id": "versus",
+      "title": "Why not read in order?",
+      "visual": {
+        "widget": "Compare",
+        "props": {
+          "columns": [
+            {
+              "id": "attn",
+              "title": "Attention"
+            },
+            {
+              "id": "rnn",
+              "title": "Recurrent net"
+            }
+          ],
+          "rows": [
+            {
+              "label": "Looks at",
+              "cells": [
+                "every token at once",
+                "one token at a time"
+              ]
+            },
+            {
+              "label": "Distant words",
+              "cells": [
+                "one direct comparison",
+                "many steps apart"
+              ]
+            }
+          ]
+        }
+      },
+      "state": {
+        "highlight": null
+      },
+      "steps": [
+        {
+          "id": "v-attn",
+          "text": "Unlike a recurrent net, [[part:attn|attention]] compares every pair of tokens directly.",
+          "set": {
+            "highlight": "attn"
+          },
+          "highlight": [
+            "attn"
+          ],
+          "covers": []
+        }
+      ]
+    },
+    {
+      "layout": "explore",
+      "id": "play",
+      "title": "Try the temperature",
+      "visual": {
+        "widget": "FunctionPlot",
+        "props": {
+          "expression": "exp(x / t) / (exp(x / t) + exp(1 / t))",
+          "x": {
+            "label": "score of word A",
+            "min": -2.0,
+            "max": 4.0
+          },
+          "y": {
+            "label": "weight on word A",
+            "min": 0.0,
+            "max": 1.0
+          },
+          "params": [
+            {
+              "name": "t",
+              "label": "temperature",
+              "min": 0.2,
+              "max": 5.0
+            }
+          ]
+        }
+      },
+      "state": {
+        "t": 1
+      },
+      "controls": [
+        {
+          "kind": "slider",
+          "key": "t",
+          "label": "Temperature",
+          "min": 0.2,
+          "max": 5.0,
+          "step": 0.1
+        }
+      ],
+      "task": "Find the temperature where a score of 2 gets about 90% of the weight."
+    },
+    {
+      "layout": "stack",
+      "id": "check",
+      "title": "Check yourself",
+      "blocks": [
+        {
+          "type": "prose",
+          "text": "Keys and values come from the same embedding, but through different learned projections, so a [[term:key|key]] and a [[term:value|value]] are different vectors.",
+          "covers": [
+            "kp-qkv"
+          ]
+        },
+        {
+          "type": "cards",
+          "items": [
+            {
+              "title": "Query and key",
+              "body": "Decide how much to attend.",
+              "tag": "matching"
+            },
+            {
+              "title": "Value",
+              "body": "Decides what gets passed on.",
+              "tag": "content"
+            }
+          ],
+          "covers": [
+            "kp-mix"
+          ]
+        },
+        {
+          "type": "predict",
+          "question": "Attention picks exactly one word for each token to look at. True or false?",
+          "options": [
+            "True",
+            "False"
+          ],
+          "answer": 1,
+          "hint": "Look back at the row of weights for sat. How many cells were above zero?",
+          "explanation": "False. Every token gets a weight; softmax makes them positive and sum to 1, so attention blends all the values.",
+          "misconception": "attention-picks-one",
+          "covers": [
+            "kp-softmax"
+          ]
+        },
+        {
+          "type": "sort",
+          "question": "Match each vector to its job.",
+          "items": [
+            "query",
+            "key",
+            "value"
+          ],
+          "buckets": [
+            "what I look for",
+            "what I match on",
+            "what I pass on"
+          ],
+          "answer": [
+            0,
+            1,
+            2
+          ],
+          "hint": "Only one of them is used after the weights are known.",
+          "explanation": "The query is compared with keys to make weights; the weights then mix the values.",
+          "misconception": "keys-equal-values",
+          "covers": [
+            "kp-qkv"
+          ]
+        },
+        {
+          "type": "recall",
+          "prompt": "In your own words, explain how attention decides how much each word matters.",
+          "keyPoints": [
+            "kp-qkv",
+            "kp-scores",
+            "kp-softmax",
+            "kp-mix"
+          ],
+          "minWords": 30
+        }
+      ]
+    }
+  ]
+}
