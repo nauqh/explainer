@@ -14,7 +14,7 @@ from .base import Model
 from .config import settings
 from .lesson import Lesson
 from .pipeline import deepen, generate
-from .trending import trending_questions
+from .trending import Example, trending_questions
 
 COOKIE = "learner"
 log = logging.getLogger(__name__)
@@ -91,5 +91,5 @@ async def deepen_lesson(body: DeeperRequest, request: Request):
 
 
 @app.get("/trending-questions")
-async def read_trending_questions() -> list[str]:
+async def read_trending_questions() -> list[Example]:
     return await trending_questions()

@@ -5,13 +5,21 @@ import { useEffect, useRef, useState } from "react";
 import { viewTransition } from "@/lib/motion";
 import { API_URL } from "@/lib/sse";
 
+/** A trending question carries the story it came from (GET /trending-questions); the built-in ones carry none. */
+type Example = { question: string; source: { title: string; url: string } | null };
+
 // Shown until the trending questions arrive, and kept if the backend can't produce them.
-const EXAMPLES = [
+const EXAMPLES: Example[] = [
   "How does attention decide which words matter?",
   "What does temperature do when a model picks the next token?",
   "Why does gradient descent sometimes overshoot?",
   "What is the difference between RAG and fine-tuning?",
-];
+].map((question) => ({ question, source: null }));
+
+/** "https://www.example.org/a/b" -> "example.org": enough to say where the link goes. */
+const host = (url: string) => new URL(url).hostname.replace(/^www\./, "");
+// The backend already refuses anything else; this keeps a stray javascript: link off the page regardless.
+const safe = (url: string) => /^https?:\/\//i.test(url);
 
 export function AskForm() {
   const router = useRouter();
@@ -25,7 +33,7 @@ export function AskForm() {
   useEffect(() => {
     fetch(`${API_URL}/trending-questions`)
       .then((r) => (r.ok ? r.json() : []))
-      .then((qs: string[]) => { if (qs.length) setExamples(qs.slice(0, 4)); })
+      .then((qs: Example[]) => { if (qs.length) setExamples(qs.slice(0, 4)); })
       .catch(() => {});
   }, []);
 
@@ -67,12 +75,24 @@ export function AskForm() {
       <div className="mt-[5svh] border-t border-white/20 pt-[2.5svh] font-sans">
         <p className="m-0 mb-[1.2svh] text-sm text-white/65">Or start from one of these</p>
         <ul className="m-0 flex list-none flex-col gap-[0.8svh] p-0">
-          {examples.map((q) => (
-            <li key={q}>
+          {examples.map(({ question: q, source }) => (
+            <li key={q} className="flex flex-col items-start">
               <button type="button" onClick={(e) => ask(q, e.currentTarget)}
                 className="text-left text-[clamp(0.95rem,2.1svh,1.05rem)] text-white/90 decoration-marker decoration-2 underline-offset-4 hover:text-white hover:underline">
                 {q}
               </button>
+              {/* The story behind a trending question, beside the question rather than inside its button. */}
+              {source && safe(source.url) && (
+                <a href={source.url} target="_blank" rel="noreferrer"
+                  className="group mt-0.5 inline-flex max-w-full items-baseline gap-1.5 text-xs text-white/50 hover:text-white/85">
+                  <span className="truncate">
+                    <span className="sr-only">Source: </span>{source.title}
+                  </span>
+                  <span className="shrink-0 text-white/40 group-hover:text-white/70">{host(source.url)}</span>
+                  <span aria-hidden className="shrink-0">↗</span>
+                  <span className="sr-only">(opens in a new tab)</span>
+                </a>
+              )}
             </li>
           ))}
         </ul>
