@@ -77,7 +77,7 @@ The agents' output must pass the validator before it is saved or streamed; failu
 | --- | --- | --- |
 | Backend API | FastAPI (Python) | Routing, generation, cache, checks, recall grading |
 | Generation | Pydantic AI | Typed output, output validators raising `ModelRetry`, model-agnostic |
-| Models | Claude through OpenRouter (`OPENROUTER_API_KEY`) | Router `anthropic/claude-haiku-4.5`, planner and recall grader `anthropic/claude-opus-5.5`, scene writer `anthropic/claude-sonnet-5.5`; ids in env config, revisit with evals |
+| Models | Through OpenRouter (`OPENROUTER_API_KEY`) | Router `openai/gpt-oss-120b:nitro`, planner, recall grader and scene writer `anthropic/claude-sonnet-5.5`; ids in env config, revisit with evals |
 | Search | Pydantic AI `WebSearchTool` through OpenRouter | Time-sensitive concepts only; `allowed_domains` allowlist in config |
 | Schema | Pydantic v2 | Export with `model_json_schema()`; TS types via `json-schema-to-typescript` |
 | Database | Postgres (SQLModel) | Lesson cache, attempts, recall answers |
@@ -132,7 +132,7 @@ Every scene has `id`, `title` and, for scenes with a visual, `state`: a map of k
 - `explore`: one `visual`, its `state`, optional `controls` (sliders for numeric keys, selects for the rest, bound to state) and a `task`. Optional enrichment only.
 - `stack`: a list of `blocks` in normal page flow.
 
-**Step**: `id`, `text`, `set` (state changes), `highlight` (widget part ids), `covers` (key point ids).
+**Step**: `id`, `text` (30 to 80 words, one idea), `set` (state changes), `highlight` (widget part ids), `covers` (key point ids), `annotate` (up to 3 short notes pinned to widget parts; plain text that may print `{fact:name}` or `{stateKey}`).
 
 Step state = scene defaults + this step's `set`, never accumulated from earlier steps, so scrolling back just re-applies the earlier step.
 
@@ -141,7 +141,7 @@ Step state = scene defaults + this step's `set`, never accumulated from earlier 
 - `[[part:<id>|label]]` links to a part of the scene's widget; tapping either side highlights both.
 - `[[term:<id>|label]]` shows the glossary definition.
 - `[[source:<id>|label]]` links to a cited source.
-- `{stateKey}` prints the live state value.
+- `{stateKey}` prints a state value and `{fact:name}` a value the widget computed (each widget declares its facts). In step text both are pinned to that step's own state, so a paragraph read ahead of the trigger line still shows its own numbers.
 
 **Blocks** (stack scenes)
 
@@ -179,6 +179,8 @@ The catalog text and the lesson JSON Schema in the model's prompt are generated 
 | `Compare` | structure | Side-by-side options or a small table | columns, rows | `highlight` (a column id or null) |
 | `FunctionPlot` | chart | A curve computed in the browser | a restricted maths expression, parameters with ranges | one key per declared parameter |
 | `Matrix` | structure | A grid of values from a named recipe (softmax, dot product, confusion matrix) | recipe, inputs | `selected` (a cell or null) |
+| `Distribution` | chart | Probability bars computed as softmax(logits / temperature), in logit order, with a sampling cutoff | labels, logits, optional target | `view` (logits, probs), `temperature`, `topK`, `topP` |
+| `PointCloud` | chart | Seeded scatter with a model fitted in the browser: linear or polynomial regression, logistic regression (gradient descent), k-nearest neighbours (shaded regions), k-means (moving centroids); a random quarter held out as test data | dataset (shape, n, noise, classes, seed), axis labels, class labels, model | `show` (points, fit, errors), `split` (all, train, test), plus per model `degree`, `iteration` and `threshold`, `k` |
 
 Rules that keep numbers honest:
 
@@ -198,7 +200,7 @@ A router classifies the question, an optional search grounds time-sensitive conc
 2. **Cache lookup.** Key = concept + focus + level + prompt version. A hit returns the stored lesson immediately. Lessons with `timeSensitive` expire after 30 days; others never expire.
 3. **Search** (only when `timeSensitive`). The planner runs with the web search tool, limited to the domain allowlist (official docs and specs, arXiv, well-known course notes). Found pages become `sources`.
 4. **Planner** (output = `LessonPlan`). Input: the question, the route, the catalog text, and sources if any. Output: key points (with source ids when time-sensitive), misconceptions, terms, and a scene list (id, layout, title, widget, purpose, the key points each scene covers). The scene writer picks props and default state, so the plan stays small and fast. The first scene addresses the question's focus. Validated against the plan rules (coverage, terms before process scenes, ends with recall, citations when time-sensitive) before any scene is written.
-5. **Scene writer** (one run per scene, output = `Scene`). Input: the plan, the catalog, and the scenes before it. Scenes are written one at a time for now; parallelise after the first scene if total time becomes the bottleneck.
+5. **Scene writer** (one run per scene, output = `Scene`). Input: the plan, the catalog, and the earlier scenes already finished. Scene 0 is written alone so the first part shows as early as possible; then a rolling pool writes up to `PARALLEL_SCENES` (default 3) at once, starting the next scene whenever one finishes. Scenes stream as they pass, possibly out of order, and the page renders the contiguous run from scene 0. Step ids are prefixed with their scene id so parallel scenes cannot collide, and `terms-first` is a warning because siblings cannot see each other.
 6. **Validation as output validator.** Each run's output validator runs the schema and the lint rules for that scene. A failure raises `ModelRetry` with the lint messages. Output retries = 3; after that, mark the generation failed, log it, and tell the learner.
 7. **Lesson-level checks** after all scenes are in: coverage, terms first, recall at the end, unique ids.
 8. **Stream to the browser.** Progress events ("Searching sources", "Planning lesson", "Writing scene 1") and each scene as soon as it passes validation.
@@ -245,7 +247,7 @@ The front end renders the same scenes in two modes, scrolly and stepper, and bot
 
 **Motion and accessibility**
 
-- Transitions short (about 300-500 ms) and only between step states. A replay button per step.
+- Value changes (bars, curves, cells) take about 0.8 s so the eye can follow them; highlights and notes fade in 200-300 ms. Axes stay fixed across a scene's steps. A replay button per step. Research basis: `docs/research/scrollytelling.md`.
 - `prefers-reduced-motion`: step changes are instant (fades allowed).
 - Any widget that animates on its own for more than 5 seconds gets a visible pause control (WCAG 2.2.2).
 - Every widget has an accessible name and a text alternative; step text alone must carry the lesson.
@@ -260,11 +262,14 @@ Every scene and lesson must pass the Pydantic schema and these lint rules before
 | `schema` | error | Pydantic: shape, widget is in the catalog, props valid (including `FunctionPlot` expressions and the id references inside props) |
 | `state-keys` / `state-values` | error | Scene state, steps and controls only use keys the widget reads, with valid values (e.g. `upTo` must be a message id in the scene's props) |
 | `one-change` | error | At most one state key differs from the previous step's state (the scene defaults for the first step) |
-| `word-cap` | error | At most 40 words per step |
+| `word-cap` | error | At most 80 words per step |
+| `scene-length` | error | Scrolly scenes have 3 to 8 steps |
+| `step-does-work` | error | Every step after the first changes a state key, highlights a different part, or adds a note |
+| `typed-number` | warn | Numbers typed into step text in a scene whose widget computes values; quote `{fact:name}` instead |
 | `refs` | error | Every `[[part:]]`, `[[term:]]`, `[[source:]]`, `{var}` and highlight resolves; no part links in stack scenes |
 | `citations` | error | When `timeSensitive`, every key point cites at least one source |
 | `coverage` | error | Every key point is covered by a scrolly or stack scene, not only an explore scene |
-| `terms-first` | error | Every term used by a process or playground scene is introduced before it |
+| `terms-first` | warn | Every term used by a process or playground scene is introduced before it (a warning: scenes written in parallel cannot see which sibling introduces a term) |
 | `recall` | error | The last scene contains a recall block |
 | `check-answer` / `misconception` | error | Answer indices valid; misconceptions exist in the plan |
 | `unique-ids` | error | Scene and step ids unique |
