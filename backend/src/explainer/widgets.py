@@ -16,6 +16,12 @@ from .base import Id, Model, OneOf, Range, StateSpec
 class Visual(Model):
     kind: ClassVar[Literal["structure", "process", "playground", "chart"]]
     description: ClassVar[str]
+    # Values the widget computes that step text may print with {fact:<name>}.
+    facts: ClassVar[tuple[str, ...]] = ()
+
+    def fact_names(self) -> tuple[str, ...]:
+        """The facts this configuration computes; override when they depend on props."""
+        return self.facts
 
     def state_spec(self) -> dict[str, StateSpec]:
         raise NotImplementedError
@@ -337,6 +343,7 @@ class MatrixVisual(Visual):
         "`selected` emphasises one cell, id 'cell-<row>-<col>' with 0-based indices, or none. "
         "Never write computed cell values yourself."
     )
+    facts = ("selectedValue",)
     widget: Literal["Matrix"]
     props: MatrixProps
 
@@ -356,9 +363,164 @@ class MatrixVisual(Visual):
         return cells | {f"row-{i}" for i in range(r)} | {f"col-{j}" for j in range(c)}
 
 
-WIDGETS: list[type[Visual]] = [DiagramVisual, SequenceVisual, CompareVisual, FunctionPlotVisual, MatrixVisual]
+# Distribution
+
+
+class DistributionProps(Model):
+    labels: list[str] = Field(min_length=2, max_length=12, description="One per option, e.g. candidate next tokens.")
+    logits: list[float] = Field(description="Illustrative raw scores, one per label. The browser computes probabilities.")
+    target: int | None = Field(default=None, description="Index of the correct label, for cross-entropy. Optional.")
+
+    @model_validator(mode="after")
+    def _shape(self):
+        if len(self.logits) != len(self.labels):
+            raise ValueError(f"logits must have one number per label ({len(self.labels)})")
+        if len(set(self.labels)) != len(self.labels):
+            raise ValueError("labels must be unique")
+        if any(len(label) > 24 for label in self.labels):
+            raise ValueError("keep each label to 24 characters")
+        if self.target is not None and not 0 <= self.target < len(self.labels):
+            raise ValueError(f"target must be a label index, 0 to {len(self.labels) - 1}")
+        return self
+
+
+class DistributionVisual(Visual):
+    kind = "chart"
+    description = (
+        "Bars of a probability distribution over a few options (next tokens, classes, attention targets), "
+        "computed in the browser as softmax(logits / temperature). Bars stay in logit order; only their lengths "
+        "change. `view` shows raw 'logits' or 'probs'. `topK` and `topP` fade the bars that sampling would drop "
+        "and draw a cutoff line. Parts: 'bar-<i>' (0-based label index), 'cutoff', 'target'. "
+        "Use it for softmax, temperature, top-k, top-p, greedy vs sampling, classifier outputs, cross-entropy."
+    )
+    facts = ("topLabel", "topProb", "entropy", "kept", "targetProb", "crossEntropy")
+    widget: Literal["Distribution"]
+    props: DistributionProps
+
+    def state_spec(self):
+        n = len(self.props.labels)
+        return {
+            "view": OneOf(("probs", "logits")),
+            "temperature": Range(0.05, 5),
+            "topK": Range(1, n, integer=True),
+            "topP": Range(0.05, 1),
+        }
+
+    def parts(self):
+        bars = {f"bar-{i}" for i in range(len(self.props.labels))}
+        return bars | {"cutoff"} | ({"target"} if self.props.target is not None else set())
+
+
+# PointCloud
+
+REGRESSION = ("linear", "polynomial")
+CLASSIFICATION = ("logistic", "knn")
+
+
+class Dataset(Model):
+    shape: Literal["blobs", "moons", "circles", "xor", "line", "curve"] = Field(
+        description="blobs/moons/circles/xor are labelled classes; line/curve are regression data (classes 1)."
+    )
+    n: int = Field(ge=20, le=200, description="Number of points; a random quarter of them is held out as test data.")
+    noise: float = Field(ge=0, le=1)
+    classes: int = Field(ge=1, le=3, description="1 for line/curve; 2 for moons/circles/xor; 2 or 3 for blobs.")
+    seed: int = Field(ge=0, description="Same seed, same points, for every learner.")
+
+    @model_validator(mode="after")
+    def _classes(self):
+        need = {"line": (1,), "curve": (1,), "moons": (2,), "circles": (2,), "xor": (2,), "blobs": (2, 3)}[self.shape]
+        if self.classes not in need:
+            raise ValueError(f"shape '{self.shape}' needs classes {' or '.join(map(str, need))}")
+        return self
+
+
+class PointCloudProps(Model):
+    dataset: Dataset
+    x_label: str = Field(max_length=30)
+    y_label: str = Field(max_length=30)
+    class_labels: list[str] = Field(default_factory=list, description="One short name per class, e.g. ['spam', 'not spam'].")
+    model: Literal["none", "linear", "polynomial", "logistic", "knn", "kmeans"]
+
+    @model_validator(mode="after")
+    def _fits(self):
+        d = self.dataset
+        if self.model in REGRESSION and d.classes != 1:
+            raise ValueError(f"model '{self.model}' fits regression data: use shape 'line' or 'curve' with classes 1")
+        if self.model in CLASSIFICATION and d.classes < 2:
+            raise ValueError(f"model '{self.model}' classifies: use shape blobs, moons, circles or xor")
+        if self.model == "logistic" and d.classes != 2:
+            raise ValueError("logistic regression here separates exactly 2 classes")
+        if self.model == "kmeans" and d.shape != "blobs":
+            raise ValueError("kmeans needs shape 'blobs'")
+        if self.class_labels and len(self.class_labels) != d.classes:
+            raise ValueError(f"class_labels needs one name per class ({d.classes})")
+        return self
+
+
+class PointCloudVisual(Visual):
+    kind = "chart"
+    description = (
+        "A scatter of seeded data points with a model fitted in the browser. `model`: 'linear' or 'polynomial' "
+        "(regression on line/curve data, fitted on the training points), 'logistic' (2 classes, trained by "
+        "gradient descent, one `iteration` per step), 'knn' (k nearest neighbours, shades the decision regions), "
+        "'kmeans' (clusters blobs, centroids move with `iteration`), or 'none'. `show` builds the picture up: "
+        "'points', then 'fit' (line, curve, regions or centroids), then 'errors' (residuals or misclassified "
+        "points). `split` shows 'all' points, only 'train' or only held-out 'test' points. Use it for "
+        "regression, classification, decision boundaries, overfitting and underfitting, bias-variance, train/test "
+        "splits, kNN, k-means and gradient descent on a model. Parts: 'class-<i>', 'fit', 'errors', 'train', "
+        "'test', 'centroid-<i>' (kmeans), 'axis-x', 'axis-y'. Overfitting is only visible with few points: for "
+        "it use a 'curve' with n 20 to 24, noise 0.3 or more, and sweep degree from 1 (underfits) through 3 to 10-12 "
+        "(overfits). With more points a high degree barely hurts test error. Facts by model: regression 'trainError', "
+        "'testError'; logistic and knn 'trainAccuracy', 'testAccuracy', 'misclassified'; logistic also 'loss'; "
+        "kmeans 'loss'."
+    )
+    facts = ("trainError", "testError", "trainAccuracy", "testAccuracy", "misclassified", "loss")
+    widget: Literal["PointCloud"]
+    props: PointCloudProps
+
+    def fact_names(self):
+        m = self.props.model
+        if m in REGRESSION:
+            return ("trainError", "testError")
+        if m == "logistic":
+            return ("trainAccuracy", "testAccuracy", "misclassified", "loss")
+        if m == "knn":
+            return ("trainAccuracy", "testAccuracy", "misclassified")
+        if m == "kmeans":
+            return ("loss",)
+        return ()
+
+    def state_spec(self):
+        spec: dict[str, StateSpec] = {
+            "show": OneOf(("points", "fit", "errors")),
+            "split": OneOf(("all", "train", "test")),
+        }
+        m = self.props.model
+        if m == "polynomial":
+            spec["degree"] = Range(1, 12, integer=True)
+        elif m == "logistic":
+            spec["iteration"] = Range(0, 50, integer=True)
+            spec["threshold"] = Range(0.05, 0.95)
+        elif m == "knn":
+            spec["k"] = Range(1, 25, integer=True)
+        elif m == "kmeans":
+            spec["k"] = Range(2, 6, integer=True)
+            spec["iteration"] = Range(0, 10, integer=True)
+        return spec
+
+    def parts(self):
+        p = {"fit", "errors", "train", "test", "axis-x", "axis-y"}
+        p |= {f"class-{i}" for i in range(self.props.dataset.classes)}
+        if self.props.model == "kmeans":
+            p |= {f"centroid-{i}" for i in range(6)}
+        return p
+
+
+WIDGETS: list[type[Visual]] = [
+    DiagramVisual, SequenceVisual, CompareVisual, FunctionPlotVisual, MatrixVisual, DistributionVisual, PointCloudVisual,
+]
 
 AnyVisual = Annotated[
-    DiagramVisual | SequenceVisual | CompareVisual | FunctionPlotVisual | MatrixVisual,
+    DiagramVisual | SequenceVisual | CompareVisual | FunctionPlotVisual | MatrixVisual | DistributionVisual | PointCloudVisual,
     Field(discriminator="widget"),
 ]

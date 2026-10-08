@@ -31,12 +31,21 @@ class Term(Model):
     definition: str
 
 
+class Annotation(Model):
+    anchor: Id = Field(description="A part id of the scene's widget; the note is drawn next to it.")
+    text: str = Field(max_length=60, description="Plain text; may print {fact:name} or {stateKey}.")
+
+
 class Step(Model):
     id: Id
-    text: str = Field(description="At most 40 words. Markup: [[part:id|label]], [[term:id|label]], [[source:id|label]], {stateKey}.")
+    text: str = Field(
+        description="30 to 80 words, one idea. Markup: [[part:id|label]], [[term:id|label]], [[source:id|label]], "
+        "{stateKey} prints a state value, {fact:name} prints a value the widget computed."
+    )
     set_: State = Field(default_factory=dict, alias="set", description="State changes on top of the scene defaults; not accumulated from earlier steps.")
     highlight: list[Id] = Field(default_factory=list, description="Widget part ids.")
     covers: list[Id] = Field(default_factory=list, description="Key point ids.")
+    annotate: list[Annotation] = Field(default_factory=list, max_length=3, description="Short notes pinned to widget parts.")
 
 
 class Slider(Model):
@@ -118,14 +127,7 @@ class Sort(Model):
     covers: list[Id] = Field(default_factory=list)
 
 
-class Recall(Model):
-    type: Literal["recall"]
-    prompt: str
-    key_points: list[Id] = Field(min_length=1)
-    min_words: int = Field(ge=1)
-
-
-Block = Annotated[Prose | Cards | Predict | Sort | Recall, Field(discriminator="type")]
+Block = Annotated[Prose | Cards | Predict | Sort, Field(discriminator="type")]
 
 
 class StackScene(Model):
@@ -145,7 +147,6 @@ class Lesson(Model):
     focus: str
     level: Literal["beginner", "intermediate", "advanced"] = "intermediate"
     time_sensitive: bool
-    mode: Literal["auto", "scrolly", "stepper"] = "auto"
     key_points: list[KeyPoint] = Field(min_length=1)
     misconceptions: list[Misconception] = Field(default_factory=list)
     sources: list[Source] = Field(default_factory=list)

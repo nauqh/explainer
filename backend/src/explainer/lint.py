@@ -10,11 +10,15 @@ from dataclasses import dataclass
 from typing import Literal
 
 from .base import Range
-from .lesson import Cards, ExploreScene, Lesson, Predict, Prose, Recall, ScrollyScene, Sort, StackScene
+from .lesson import Cards, ExploreScene, Lesson, Predict, Prose, ScrollyScene, Sort, StackScene
 
 MARKUP = re.compile(r"\[\[(part|term|source):([^|\]]*)\|([^\]]*)\]\]")
 VAR = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
-WORD_CAP = 40
+FACT = re.compile(r"\{fact:([A-Za-z_][A-Za-z0-9_]*)\}")
+# A number typed into text, outside markup and placeholders.
+NUMBER = re.compile(r"(?<![\w.])\d+(?:\.\d+)?%?")
+WORD_CAP = 80
+MIN_STEPS = 3
 
 
 @dataclass(frozen=True)
@@ -49,12 +53,15 @@ def _texts(scene, path: str) -> Iterator[tuple[str, str]]:
                     case Predict() | Sort():
                         for f in ("question", "hint", "explanation"):
                             yield f"{bp}.{f}", getattr(b, f)
-                    case Recall():
-                        yield f"{bp}.prompt", b.prompt
 
 
 def _words(text: str) -> int:
     return len(MARKUP.sub(lambda m: m.group(3), text).split())
+
+
+def _typed_numbers(text: str) -> list[str]:
+    plain = re.sub(r"\{[^}]*\}", "", MARKUP.sub(lambda m: m.group(3), text))
+    return NUMBER.findall(plain)
 
 
 def linked_terms(scene) -> set[str]:
@@ -87,7 +94,10 @@ def lint_scene(lesson: Lesson, i: int) -> list[Issue]:
                 add("state-values", f"{path}.state.{k}", f"{v!r} is not valid; '{k}' must be {spec[k]}")
 
     if isinstance(scene, ScrollyScene):
+        if len(scene.steps) < MIN_STEPS:
+            add("scene-length", f"{path}.steps", f"{len(scene.steps)} steps; a scrolly scene needs {MIN_STEPS} to 8 so the picture can build up")
         prev = dict(scene.state)
+        prev_highlight: set[str] | None = None
         for j, step in enumerate(scene.steps):
             sp = f"{path}.steps[{j}]"
             for k, v in step.set_.items():
@@ -100,7 +110,22 @@ def lint_scene(lesson: Lesson, i: int) -> list[Issue]:
             changed = [k for k in spec if cur.get(k) != prev.get(k)]
             if len(changed) > 1:
                 add("one-change", f"{sp}.set", f"changes {len(changed)} things at once ({', '.join(changed)}); split into steps")
-            prev = cur
+            if prev_highlight is not None and not changed and set(step.highlight) == prev_highlight and not step.annotate:
+                add("step-does-work", sp, "nothing on screen changes in this step; change one state key, highlight a different part, or add an annotation")
+            prev, prev_highlight = cur, set(step.highlight)
+            if visual.fact_names() and (nums := _typed_numbers(step.text)):
+                issues.append(Issue("typed-number", f"{sp}.text", f"typed numbers ({', '.join(nums[:4])}); quote computed values with {{fact:name}} or state with {{key}}", "warn"))
+            for a in step.annotate:
+                if a.anchor not in parts:
+                    add("refs", f"{sp}.annotate", f"annotation anchor '{a.anchor}' is not a part of this {visual.widget}")
+                if MARKUP.search(a.text):
+                    add("refs", f"{sp}.annotate", "notes are plain text; use [[...]] links in the step text instead")
+                for m in VAR.finditer(a.text):
+                    if m.group(1) not in spec:
+                        add("refs", f"{sp}.annotate", f"'{{{m.group(1)}}}' is not a state key of this scene's widget")
+                for m in FACT.finditer(a.text):
+                    if m.group(1) not in visual.fact_names():
+                        add("refs", f"{sp}.annotate", f"'{{fact:{m.group(1)}}}' is not a fact of this scene's widget")
             if (n := _words(step.text)) > WORD_CAP:
                 add("word-cap", f"{sp}.text", f"{n} words; keep a step to {WORD_CAP} or fewer")
             for h in step.highlight:
@@ -132,10 +157,6 @@ def lint_scene(lesson: Lesson, i: int) -> list[Issue]:
             for c in getattr(b, "covers", []):
                 if c not in key_points:
                     add("refs", f"{bp}.covers", f"'{c}' is not a key point id")
-            if isinstance(b, Recall):
-                for k in b.key_points:
-                    if k not in key_points:
-                        add("refs", f"{bp}.keyPoints", f"'{k}' is not a key point id")
             if isinstance(b, Predict) and not 0 <= b.answer < len(b.options):
                 add("check-answer", f"{bp}.answer", f"answer {b.answer} is not an option index (0 to {len(b.options) - 1})")
             if isinstance(b, Sort):
@@ -162,6 +183,10 @@ def lint_scene(lesson: Lesson, i: int) -> list[Issue]:
         for m in VAR.finditer(text):
             if m.group(1) not in spec:
                 add("refs", tp, f"'{{{m.group(1)}}}' is not a state key of this scene's widget")
+        for m in FACT.finditer(text):
+            if not visual or m.group(1) not in visual.fact_names():
+                facts = ", ".join(visual.fact_names()) if visual and visual.fact_names() else "none"
+                add("refs", tp, f"'{{fact:{m.group(1)}}}' is not a fact of this scene's widget (facts: {facts})")
 
     return issues
 
@@ -219,13 +244,10 @@ def lint_lesson(lesson: Lesson) -> list[Issue]:
         visual = getattr(s, "visual", None)
         if visual and visual.kind in ("process", "playground"):
             for t in sorted(used - introduced):
-                add("terms-first", f"scenes[{i}]", f"term '{t}' is first used in a {visual.kind} scene; introduce it in an earlier scene")
+                # A warning: scenes written in parallel cannot see which sibling introduces a term,
+                # and the glossary popover explains a term wherever it first appears.
+                issues.append(Issue("terms-first", f"scenes[{i}]", f"term '{t}' is first used in a {visual.kind} scene; introduce it in an earlier scene", "warn"))
         introduced |= used
-
-    # recall
-    last = lesson.scenes[-1]
-    if not (isinstance(last, StackScene) and any(isinstance(b, Recall) for b in last.blocks)):
-        add("recall", f"scenes[{len(lesson.scenes) - 1}]", "the last scene must be a stack scene with a recall block")
 
     # terms-unused
     for i, t in enumerate(lesson.terms):

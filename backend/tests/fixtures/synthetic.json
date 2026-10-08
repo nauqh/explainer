@@ -5,7 +5,6 @@
   "focus": "attention-weights",
   "level": "intermediate",
   "timeSensitive": true,
-  "mode": "auto",
   "keyPoints": [
     {
       "id": "kp-qkv",
@@ -190,7 +189,8 @@
           "highlight": [
             "emb"
           ],
-          "covers": []
+          "covers": [],
+          "annotate": []
         },
         {
           "id": "p-qkv",
@@ -205,7 +205,8 @@
           ],
           "covers": [
             "kp-qkv"
-          ]
+          ],
+          "annotate": []
         },
         {
           "id": "p-scores",
@@ -218,7 +219,8 @@
           ],
           "covers": [
             "kp-scores"
-          ]
+          ],
+          "annotate": []
         },
         {
           "id": "p-out",
@@ -233,7 +235,8 @@
           "covers": [
             "kp-softmax",
             "kp-mix"
-          ]
+          ],
+          "annotate": []
         },
         {
           "id": "p-proj",
@@ -247,7 +250,8 @@
           ],
           "covers": [
             "kp-qkv"
-          ]
+          ],
+          "annotate": []
         }
       ]
     },
@@ -294,18 +298,33 @@
       "steps": [
         {
           "id": "w-rows",
-          "text": "Each row is one token's scores after [[term:softmax|softmax]]. Every row sums to 1.",
+          "text": "Each row is one token's scores after [[term:softmax|softmax]]. Every row sums to one, so a row is a budget of attention that the token spreads across all the words.",
           "set": {},
           "highlight": [
             "row-2"
           ],
           "covers": [
             "kp-softmax"
-          ]
+          ],
+          "annotate": []
+        },
+        {
+          "id": "w-self",
+          "text": "Start with [[part:cell-0-0|the row for the]]. Most of its budget, {fact:selectedValue}, stays on itself, because nothing else in this short sentence is more relevant to it.",
+          "set": {
+            "selected": "cell-0-0"
+          },
+          "highlight": [
+            "cell-0-0"
+          ],
+          "covers": [
+            "kp-softmax"
+          ],
+          "annotate": []
         },
         {
           "id": "w-cell",
-          "text": "Look at [[part:cell-2-1|how much sat attends to cat]]: a large share, but not all of it.",
+          "text": "Now look at [[part:cell-2-1|how much sat attends to cat]]: {fact:selectedValue}. A large share, but not all of it. The rest still flows to the other words.",
           "set": {
             "selected": "cell-2-1"
           },
@@ -314,6 +333,83 @@
           ],
           "covers": [
             "kp-scores"
+          ],
+          "annotate": []
+        }
+      ]
+    },
+    {
+      "layout": "scrolly",
+      "id": "bars",
+      "title": "One row as a distribution",
+      "visual": {
+        "widget": "Distribution",
+        "props": {
+          "labels": [
+            "the",
+            "cat",
+            "sat"
+          ],
+          "logits": [
+            0.2,
+            1.8,
+            2.2
+          ],
+          "target": null
+        }
+      },
+      "state": {
+        "view": "logits",
+        "temperature": 1,
+        "topK": 3,
+        "topP": 1
+      },
+      "steps": [
+        {
+          "id": "b-logits",
+          "text": "These are the raw scores sat gives each word, before [[term:softmax|softmax]]. They can be any size, and on their own they do not say how to split the attention.",
+          "set": {},
+          "highlight": [
+            "bar-2",
+            "bar-1"
+          ],
+          "covers": [
+            "kp-scores"
+          ],
+          "annotate": []
+        },
+        {
+          "id": "b-probs",
+          "text": "Softmax turns them into weights that add up to one. The biggest weight, {fact:topProb}, goes to [[part:bar-2|sat itself]], with cat close behind.",
+          "set": {
+            "view": "probs"
+          },
+          "highlight": [
+            "bar-2"
+          ],
+          "covers": [
+            "kp-softmax"
+          ],
+          "annotate": []
+        },
+        {
+          "id": "b-sharp",
+          "text": "Divide the scores by a small temperature before softmax and the split gets sharper: {fact:topLabel} now takes {fact:topProb}. Temperature changes how peaked the weights are, never their order.",
+          "set": {
+            "view": "probs",
+            "temperature": 0.3
+          },
+          "highlight": [
+            "bar-2"
+          ],
+          "covers": [
+            "kp-softmax"
+          ],
+          "annotate": [
+            {
+              "anchor": "bar-2",
+              "text": "Sharper, same winner"
+            }
           ]
         }
       ]
@@ -359,7 +455,8 @@
           ],
           "covers": [
             "kp-softmax"
-          ]
+          ],
+          "annotate": []
         },
         {
           "id": "s-sharp",
@@ -370,7 +467,8 @@
           "highlight": [
             "curve"
           ],
-          "covers": []
+          "covers": [],
+          "annotate": []
         },
         {
           "id": "s-soft",
@@ -381,7 +479,102 @@
           "highlight": [
             "curve"
           ],
-          "covers": []
+          "covers": [],
+          "annotate": []
+        }
+      ]
+    },
+    {
+      "layout": "scrolly",
+      "id": "cloud",
+      "title": "Aside: fitting too well",
+      "visual": {
+        "widget": "PointCloud",
+        "props": {
+          "dataset": {
+            "shape": "curve",
+            "n": 20,
+            "noise": 0.3,
+            "classes": 1,
+            "seed": 7
+          },
+          "xLabel": "input",
+          "yLabel": "output",
+          "classLabels": [],
+          "model": "polynomial"
+        }
+      },
+      "state": {
+        "show": "points",
+        "split": "all",
+        "degree": 1
+      },
+      "steps": [
+        {
+          "id": "c-points",
+          "text": "Attention weights are learned, and every learned model can fit its data too well. These are noisy measurements of a smooth curve. A quarter of the points are held back as [[part:test|test data]] that the model never trains on.",
+          "set": {},
+          "highlight": [
+            "test"
+          ],
+          "covers": [],
+          "annotate": []
+        },
+        {
+          "id": "c-line",
+          "text": "A straight line, degree {degree}, cannot bend, so it misses the shape. Its error on the training points stays high at {fact:trainError}. That is underfitting.",
+          "set": {
+            "show": "fit"
+          },
+          "highlight": [
+            "fit"
+          ],
+          "covers": [],
+          "annotate": []
+        },
+        {
+          "id": "c-good",
+          "text": "At degree {degree} the [[part:fit|curve]] follows the bend. Training error drops to {fact:trainError}, and the held-out points agree: test error is {fact:testError}.",
+          "set": {
+            "show": "fit",
+            "degree": 3
+          },
+          "highlight": [
+            "fit"
+          ],
+          "covers": [],
+          "annotate": []
+        },
+        {
+          "id": "c-wiggle",
+          "text": "Push the degree to {degree}. The curve now wiggles through almost every training point, and training error falls again, to {fact:trainError}.",
+          "set": {
+            "show": "fit",
+            "degree": 12
+          },
+          "highlight": [
+            "fit"
+          ],
+          "covers": [],
+          "annotate": [
+            {
+              "anchor": "fit",
+              "text": "Chasing the noise"
+            }
+          ]
+        },
+        {
+          "id": "c-errors",
+          "text": "Show each point's error. On the held-out points the wiggles miss badly: test error jumps to {fact:testError}. Low training error with high test error is overfitting.",
+          "set": {
+            "show": "errors",
+            "degree": 12
+          },
+          "highlight": [
+            "errors"
+          ],
+          "covers": [],
+          "annotate": []
         }
       ]
     },
@@ -445,7 +638,8 @@
           ],
           "covers": [
             "kp-scores"
-          ]
+          ],
+          "annotate": []
         },
         {
           "id": "t-cat",
@@ -458,7 +652,8 @@
           ],
           "covers": [
             "kp-scores"
-          ]
+          ],
+          "annotate": []
         },
         {
           "id": "t-mix",
@@ -471,7 +666,8 @@
           ],
           "covers": [
             "kp-mix"
-          ]
+          ],
+          "annotate": []
         }
       ]
     },
@@ -523,7 +719,37 @@
           "highlight": [
             "attn"
           ],
-          "covers": []
+          "covers": [],
+          "annotate": []
+        },
+        {
+          "id": "v-rnn",
+          "text": "A [[part:rnn|recurrent net]] reads one token at a time, so a word far back has to survive many steps before it can affect the current one.",
+          "set": {
+            "highlight": "rnn"
+          },
+          "highlight": [
+            "rnn"
+          ],
+          "covers": [],
+          "annotate": []
+        },
+        {
+          "id": "v-back",
+          "text": "That is why [[part:attn|attention]] handles long-range links well: any token is one comparison away, however far apart the two words are.",
+          "set": {
+            "highlight": "attn"
+          },
+          "highlight": [
+            "attn"
+          ],
+          "covers": [],
+          "annotate": [
+            {
+              "anchor": "attn",
+              "text": "One comparison to any token"
+            }
+          ]
         }
       ]
     },
@@ -639,17 +865,6 @@
           "covers": [
             "kp-qkv"
           ]
-        },
-        {
-          "type": "recall",
-          "prompt": "In your own words, explain how attention decides how much each word matters.",
-          "keyPoints": [
-            "kp-qkv",
-            "kp-scores",
-            "kp-softmax",
-            "kp-mix"
-          ],
-          "minWords": 30
         }
       ]
     }

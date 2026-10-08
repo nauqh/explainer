@@ -22,6 +22,30 @@
       "title": "Actor",
       "type": "object"
     },
+    "Annotation": {
+      "additionalProperties": false,
+      "properties": {
+        "anchor": {
+          "description": "A part id of the scene's widget; the note is drawn next to it.",
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+          "title": "Anchor",
+          "type": "string"
+        },
+        "text": {
+          "description": "Plain text; may print {fact:name} or {stateKey}.",
+          "maxLength": 60,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "anchor",
+        "text"
+      ],
+      "title": "Annotation",
+      "type": "object"
+    },
     "Axis": {
       "additionalProperties": false,
       "properties": {
@@ -231,6 +255,59 @@
       "title": "ConfusionRecipe",
       "type": "object"
     },
+    "Dataset": {
+      "additionalProperties": false,
+      "properties": {
+        "shape": {
+          "description": "blobs/moons/circles/xor are labelled classes; line/curve are regression data (classes 1).",
+          "enum": [
+            "blobs",
+            "moons",
+            "circles",
+            "xor",
+            "line",
+            "curve"
+          ],
+          "title": "Shape",
+          "type": "string"
+        },
+        "n": {
+          "description": "Number of points; a random quarter of them is held out as test data.",
+          "maximum": 200,
+          "minimum": 20,
+          "title": "N",
+          "type": "integer"
+        },
+        "noise": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Noise",
+          "type": "number"
+        },
+        "classes": {
+          "description": "1 for line/curve; 2 for moons/circles/xor; 2 or 3 for blobs.",
+          "maximum": 3,
+          "minimum": 1,
+          "title": "Classes",
+          "type": "integer"
+        },
+        "seed": {
+          "description": "Same seed, same points, for every learner.",
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "shape",
+        "n",
+        "noise",
+        "classes",
+        "seed"
+      ],
+      "title": "Dataset",
+      "type": "object"
+    },
     "DiagramProps": {
       "additionalProperties": false,
       "properties": {
@@ -285,6 +362,68 @@
         "props"
       ],
       "title": "DiagramVisual",
+      "type": "object"
+    },
+    "DistributionProps": {
+      "additionalProperties": false,
+      "properties": {
+        "labels": {
+          "description": "One per option, e.g. candidate next tokens.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 12,
+          "minItems": 2,
+          "title": "Labels",
+          "type": "array"
+        },
+        "logits": {
+          "description": "Illustrative raw scores, one per label. The browser computes probabilities.",
+          "items": {
+            "type": "number"
+          },
+          "title": "Logits",
+          "type": "array"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Index of the correct label, for cross-entropy. Optional.",
+          "title": "Target"
+        }
+      },
+      "required": [
+        "labels",
+        "logits",
+        "target"
+      ],
+      "title": "DistributionProps",
+      "type": "object"
+    },
+    "DistributionVisual": {
+      "additionalProperties": false,
+      "properties": {
+        "widget": {
+          "const": "Distribution",
+          "title": "Widget",
+          "type": "string"
+        },
+        "props": {
+          "$ref": "#/$defs/DistributionProps"
+        }
+      },
+      "required": [
+        "widget",
+        "props"
+      ],
+      "title": "DistributionVisual",
       "type": "object"
     },
     "DotProductRecipe": {
@@ -389,8 +528,10 @@
             "mapping": {
               "Compare": "#/$defs/CompareVisual",
               "Diagram": "#/$defs/DiagramVisual",
+              "Distribution": "#/$defs/DistributionVisual",
               "FunctionPlot": "#/$defs/FunctionPlotVisual",
               "Matrix": "#/$defs/MatrixVisual",
+              "PointCloud": "#/$defs/PointCloudVisual",
               "Sequence": "#/$defs/SequenceVisual"
             },
             "propertyName": "widget"
@@ -410,6 +551,12 @@
             },
             {
               "$ref": "#/$defs/MatrixVisual"
+            },
+            {
+              "$ref": "#/$defs/DistributionVisual"
+            },
+            {
+              "$ref": "#/$defs/PointCloudVisual"
             }
           ],
           "title": "Visual"
@@ -755,6 +902,72 @@
       "title": "Param",
       "type": "object"
     },
+    "PointCloudProps": {
+      "additionalProperties": false,
+      "properties": {
+        "dataset": {
+          "$ref": "#/$defs/Dataset"
+        },
+        "xLabel": {
+          "maxLength": 30,
+          "title": "Xlabel",
+          "type": "string"
+        },
+        "yLabel": {
+          "maxLength": 30,
+          "title": "Ylabel",
+          "type": "string"
+        },
+        "classLabels": {
+          "description": "One short name per class, e.g. ['spam', 'not spam'].",
+          "items": {
+            "type": "string"
+          },
+          "title": "Classlabels",
+          "type": "array"
+        },
+        "model": {
+          "enum": [
+            "none",
+            "linear",
+            "polynomial",
+            "logistic",
+            "knn",
+            "kmeans"
+          ],
+          "title": "Model",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dataset",
+        "xLabel",
+        "yLabel",
+        "classLabels",
+        "model"
+      ],
+      "title": "PointCloudProps",
+      "type": "object"
+    },
+    "PointCloudVisual": {
+      "additionalProperties": false,
+      "properties": {
+        "widget": {
+          "const": "PointCloud",
+          "title": "Widget",
+          "type": "string"
+        },
+        "props": {
+          "$ref": "#/$defs/PointCloudProps"
+        }
+      },
+      "required": [
+        "widget",
+        "props"
+      ],
+      "title": "PointCloudVisual",
+      "type": "object"
+    },
     "Predict": {
       "additionalProperties": false,
       "properties": {
@@ -848,43 +1061,6 @@
       "title": "Prose",
       "type": "object"
     },
-    "Recall": {
-      "additionalProperties": false,
-      "properties": {
-        "type": {
-          "const": "recall",
-          "title": "Type",
-          "type": "string"
-        },
-        "prompt": {
-          "title": "Prompt",
-          "type": "string"
-        },
-        "keyPoints": {
-          "items": {
-            "maxLength": 64,
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
-            "type": "string"
-          },
-          "minItems": 1,
-          "title": "Keypoints",
-          "type": "array"
-        },
-        "minWords": {
-          "minimum": 1,
-          "title": "Minwords",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "type",
-        "prompt",
-        "keyPoints",
-        "minWords"
-      ],
-      "title": "Recall",
-      "type": "object"
-    },
     "Row": {
       "additionalProperties": false,
       "properties": {
@@ -931,8 +1107,10 @@
             "mapping": {
               "Compare": "#/$defs/CompareVisual",
               "Diagram": "#/$defs/DiagramVisual",
+              "Distribution": "#/$defs/DistributionVisual",
               "FunctionPlot": "#/$defs/FunctionPlotVisual",
               "Matrix": "#/$defs/MatrixVisual",
+              "PointCloud": "#/$defs/PointCloudVisual",
               "Sequence": "#/$defs/SequenceVisual"
             },
             "propertyName": "widget"
@@ -952,6 +1130,12 @@
             },
             {
               "$ref": "#/$defs/MatrixVisual"
+            },
+            {
+              "$ref": "#/$defs/DistributionVisual"
+            },
+            {
+              "$ref": "#/$defs/PointCloudVisual"
             }
           ],
           "title": "Visual"
@@ -1322,7 +1506,6 @@
                 "cards": "#/$defs/Cards",
                 "predict": "#/$defs/Predict",
                 "prose": "#/$defs/Prose",
-                "recall": "#/$defs/Recall",
                 "sort": "#/$defs/Sort"
               },
               "propertyName": "type"
@@ -1339,9 +1522,6 @@
               },
               {
                 "$ref": "#/$defs/Sort"
-              },
-              {
-                "$ref": "#/$defs/Recall"
               }
             ]
           },
@@ -1369,7 +1549,7 @@
           "type": "string"
         },
         "text": {
-          "description": "At most 40 words. Markup: [[part:id|label]], [[term:id|label]], [[source:id|label]], {stateKey}.",
+          "description": "30 to 80 words, one idea. Markup: [[part:id|label]], [[term:id|label]], [[source:id|label]], {stateKey} prints a state value, {fact:name} prints a value the widget computed.",
           "title": "Text",
           "type": "string"
         },
@@ -1416,6 +1596,15 @@
           },
           "title": "Covers",
           "type": "array"
+        },
+        "annotate": {
+          "description": "Short notes pinned to widget parts.",
+          "items": {
+            "$ref": "#/$defs/Annotation"
+          },
+          "maxItems": 3,
+          "title": "Annotate",
+          "type": "array"
         }
       },
       "required": [
@@ -1423,7 +1612,8 @@
         "text",
         "set",
         "highlight",
-        "covers"
+        "covers",
+        "annotate"
       ],
       "title": "Step",
       "type": "object"
@@ -1515,16 +1705,6 @@
       "title": "Timesensitive",
       "type": "boolean"
     },
-    "mode": {
-      "default": "auto",
-      "enum": [
-        "auto",
-        "scrolly",
-        "stepper"
-      ],
-      "title": "Mode",
-      "type": "string"
-    },
     "keyPoints": {
       "items": {
         "$ref": "#/$defs/KeyPoint"
@@ -1588,7 +1768,6 @@
     "focus",
     "level",
     "timeSensitive",
-    "mode",
     "keyPoints",
     "misconceptions",
     "sources",

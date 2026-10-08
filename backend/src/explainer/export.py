@@ -17,7 +17,8 @@ def catalog_text() -> str:
     parts = ["# Widget catalog\n"]
     for w in WIDGETS:
         name = w.model_fields["widget"].annotation.__args__[0]
-        parts.append(f"## {name} ({w.kind})\n\n{w.description}\n")
+        facts = f"\n\nFacts for {{fact:name}}: {', '.join(w.facts)}." if w.facts else ""
+        parts.append(f"## {name} ({w.kind})\n\n{w.description}{facts}\n")
     return "\n".join(parts)
 
 

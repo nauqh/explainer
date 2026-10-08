@@ -1,68 +1,93 @@
-"""Question in, events out: route, cache, plan, write scenes one by one, save."""
+"""Question in, events out: route, plan, write scenes, check. Nothing is stored: every question is a new run."""
 
-import json
+import asyncio
 import logging
-import os
-import uuid
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime, timedelta
 
 from pydantic_ai import UnexpectedModelBehavior
 from pydantic_ai.capabilities import NativeTool
 from pydantic_ai.messages import RetryPromptPart
 from pydantic_ai.native_tools import WebSearchTool
 from pydantic_ai.usage import RunUsage
-from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 from . import agents
 from .agents import PlanDeps, WriteDeps, assemble
+from .config import settings
+from .lesson import Lesson
 from .lint import lint_lesson
 
 log = logging.getLogger(__name__)
 
-TIME_SENSITIVE_TTL = timedelta(days=30)
-
-engine = create_engine(os.environ.get("DATABASE_URL", "sqlite:///explainer.db"))
-
-
-class StoredLesson(SQLModel, table=True):
-    id: str = Field(primary_key=True)
-    key: str = Field(index=True)
-    lesson: str  # JSON
-    created_at: datetime
-    expires_at: datetime | None = None
-    prompt_version: str
-    models: str
-    input_tokens: int
-    output_tokens: int
-    retries: int
+FAILED = "Could not build a valid lesson for this question. Please try again or rephrase it."
+FAILED_DEEPER = "Could not write the deeper parts. Please try again."
 
 
-SQLModel.metadata.create_all(engine)
-
-
-def get_lesson(lesson_id: str) -> dict | None:
-    with Session(engine) as db:
-        row = db.get(StoredLesson, lesson_id)
-        return json.loads(row.lesson) if row else None
-
-
-def _cached(key: str) -> StoredLesson | None:
-    now = datetime.now(UTC)
-    with Session(engine) as db:
-        q = select(StoredLesson).where(StoredLesson.key == key).order_by(StoredLesson.created_at.desc())
-        row = db.exec(q).first()
-    if row and (row.expires_at is None or row.expires_at > now):
-        return row
-    return None
+def _log_usage(what: str, question: str, usage: RunUsage, retries: int) -> None:
+    """Cost and quality per run, in the server log (nothing is stored)."""
+    log.info("%s %r: %s input tokens, %s output tokens, %s retries", what, question, usage.input_tokens, usage.output_tokens, retries)
 
 
 def _retries(result) -> int:
     return sum(isinstance(p, RetryPromptPart) for m in result.all_messages() for p in getattr(m, "parts", []))
 
 
+def _unique_step_ids(scene):
+    """Prefix step ids with the scene id, so scenes written in parallel can never collide."""
+    for st in getattr(scene, "steps", []):
+        if not st.id.startswith(f"{scene.id}-"):
+            st.id = f"{scene.id}-{st.id}"[:64]
+    return scene
+
+
 def event(name: str, **data) -> dict:
     return {"event": name, "data": data}
+
+
+async def _write_scenes(question, route, plan, written: dict, start: int, usage, tally) -> AsyncIterator[dict]:
+    """Write plan.scenes[start:] into `written` (index -> scene), yielding progress and scene events.
+
+    Scene `start` alone, so the first new part shows as early as possible. Then a rolling pool: up to
+    PARALLEL_SCENES writers at once, and the next scene starts the moment any finishes, so no scene waits on
+    a slow sibling. Each scene streams as soon as it passes validation, possibly out of order. Scenes before
+    `start` (an existing lesson being extended) must already be in `written`.
+    """
+    total = len(plan.scenes)
+    pool = asyncio.Semaphore(settings.parallel_scenes)
+
+    def prefix() -> list:
+        """The finished scenes from 0 with no gaps: the context a scene starting now can see."""
+        out = []
+        while len(out) in written:
+            out.append(written[len(out)])
+        return out
+
+    async def write(i: int):
+        async with pool:
+            result = await agents.writer.run(f"Write scene {i}.", deps=WriteDeps(question, route, plan, prefix(), i), usage=usage)
+            return i, result
+
+    yield event("progress", stage="writing", scenes=[start], total=total)
+    i, result = await write(start)
+    tasks = [asyncio.create_task(write(j)) for j in range(start + 1, total)]
+    try:
+        for next_done in [None, *asyncio.as_completed(tasks)]:
+            if next_done is not None:
+                i, result = await next_done
+            written[i] = _unique_step_ids(result.output.scene)
+            tally["retries"] += _retries(result)
+            yield event("scene", index=i, total=total, scene=written[i].model_dump(mode="json"))
+            # Waiters wake in order, so the next scenes being written are the lowest unfinished ones.
+            if pending := [j for j in range(start, total) if j not in written]:
+                yield event("progress", stage="writing", scenes=pending[:settings.parallel_scenes], total=total)
+    finally:
+        for t in tasks:
+            t.cancel()
+
+
+def _plan_event(lesson: dict) -> dict:
+    """The lesson without its scenes, plus the scene outline, so the page can render headers and links early."""
+    outline = [{"id": s["id"], "title": s["title"], "layout": s["layout"]} for s in lesson["scenes"]]
+    return event("plan", lesson={**lesson, "scenes": []}, outline=outline)
 
 
 async def generate(question: str) -> AsyncIterator[dict]:
@@ -74,59 +99,92 @@ async def generate(question: str) -> AsyncIterator[dict]:
     if not route.on_topic or not route.concept or not route.focus:
         yield event("route", onTopic=False, reason=route.reason, suggestion=route.suggestion)
         return
+    yield event("route", onTopic=True, concept=route.concept)
 
-    key = f"{route.concept}|{route.focus}|intermediate|{agents.PROMPT_VERSION}"
-    if row := _cached(key):
-        lesson = json.loads(row.lesson)
-        for i, scene in enumerate(lesson["scenes"]):
-            yield event("scene", index=i, total=len(lesson["scenes"]), scene=scene)
-        yield event("done", lessonId=row.id, lesson=lesson, cached=True)
-        return
-
-    retries = 0
+    tally = {"retries": 0}
     try:
         yield event("progress", stage="searching" if route.time_sensitive else "planning")
         caps = [NativeTool(WebSearchTool(allowed_domains=agents.SEARCH_DOMAINS, max_uses=3))] if route.time_sensitive else None
         result = await agents.planner.run(prompt, deps=PlanDeps(question, route), usage=usage, capabilities=caps)
-        plan, retries = result.output, _retries(result)
+        plan = result.output
+        tally["retries"] += _retries(result)
+        head = {
+            "schemaVersion": "0.3", "question": question, "concept": route.concept, "focus": route.focus,
+            "level": "intermediate", "timeSensitive": route.time_sensitive,
+            **plan.model_dump(mode="json", include={"key_points", "misconceptions", "sources", "terms"}),
+            "scenes": [s.model_dump(mode="json", include={"id", "title", "layout"}) for s in plan.scenes],
+        }
+        yield _plan_event(head)
 
-        scenes = []
-        for i in range(len(plan.scenes)):
-            yield event("progress", stage="writing", scene=i, total=len(plan.scenes))
-            # ponytail: scenes are written one at a time so each sees the ones before it;
-            # parallelise after scene 0 if total generation time becomes the bottleneck.
-            result = await agents.writer.run(
-                f"Write scene {i}.", deps=WriteDeps(question, route, plan, scenes, i), usage=usage
-            )
-            scenes.append(result.output.scene)
-            retries += _retries(result)
-            yield event("scene", index=i, total=len(plan.scenes), scene=result.output.scene.model_dump(mode="json"))
+        written: dict[int, object] = {}
+        async for e in _write_scenes(question, route, plan, written, 0, usage, tally):
+            yield e
+        scenes = [written[j] for j in range(len(plan.scenes))]
     except UnexpectedModelBehavior as e:
         log.warning("generation failed for %r: %s", question, e)
-        yield event("error", message="Could not build a valid lesson for this question. Please try again or rephrase it.")
+        yield event("error", message=FAILED)
         return
 
     lesson = assemble(question, route, plan, scenes)
     if errors := [str(i) for i in lint_lesson(lesson) if i.level == "error"]:
         log.warning("lesson-level lint failed for %r: %s", question, errors)
-        yield event("error", message="Could not build a valid lesson for this question. Please try again or rephrase it.")
+        yield event("error", message=FAILED)
         return
 
-    now = datetime.now(UTC)
-    lesson_id = uuid.uuid4().hex
-    row = StoredLesson(
-        id=lesson_id,
-        key=key,
-        lesson=lesson.model_dump_json(),
-        created_at=now,
-        expires_at=now + TIME_SENSITIVE_TTL if route.time_sensitive else None,
-        prompt_version=agents.PROMPT_VERSION,
-        models=json.dumps({"router": agents.ROUTER_MODEL, "planner": agents.PLANNER_MODEL, "writer": agents.WRITER_MODEL}),
-        input_tokens=usage.input_tokens,
-        output_tokens=usage.output_tokens,
-        retries=retries,
-    )
-    with Session(engine) as db:
-        db.add(row)
-        db.commit()
-    yield event("done", lessonId=lesson_id, lesson=lesson.model_dump(mode="json"), cached=False)
+    _log_usage("lesson", question, usage, tally["retries"])
+    yield event("done", lesson=lesson.model_dump(mode="json"))
+
+
+async def deepen(lesson: Lesson) -> AsyncIterator[dict]:
+    """Go deeper: plan 2 or 3 more scrolly scenes and a closing check after the lesson the page holds, and write them.
+
+    Yields the same events as generate(): plan (the whole lesson so far, plus the new parts in the outline),
+    scene (indices continue after the existing scenes), done (the extended lesson), error.
+    """
+    question = lesson.question
+    route = agents.Route(on_topic=True, concept=lesson.concept, focus=lesson.focus, time_sensitive=lesson.time_sensitive, reason="")
+    usage = RunUsage()
+    tally = {"retries": 0}
+    try:
+        yield event("progress", stage="searching" if route.time_sensitive else "planning")
+        caps = [NativeTool(WebSearchTool(allowed_domains=agents.SEARCH_DOMAINS, max_uses=3))] if route.time_sensitive else None
+        result = await agents.planner.run(
+            f"<question>{question}</question>", deps=PlanDeps(question, route, extend=lesson), usage=usage, capabilities=caps
+        )
+        more = result.output
+        tally["retries"] += _retries(result)
+        # The written scenes stand in the plan as they are; the writer only ever reads the new entries.
+        done_scenes = [
+            agents.PlannedScene.model_construct(
+                id=sc.id, layout=sc.layout, title=sc.title, purpose="Already written.", covers=[],
+                widget=getattr(getattr(sc, "visual", None), "widget", None),
+            )
+            for sc in lesson.scenes
+        ]
+        plan = agents.LessonPlan.model_construct(
+            key_points=[*lesson.key_points, *more.key_points],
+            misconceptions=[*lesson.misconceptions, *more.misconceptions],
+            sources=[*lesson.sources, *more.sources],
+            terms=[*lesson.terms, *more.terms],
+            scenes=[*done_scenes, *more.scenes],
+        )
+        head = lesson.model_dump(mode="json")
+        head |= plan.model_dump(mode="json", include={"key_points", "misconceptions", "sources", "terms"})
+        head["scenes"] = [*head["scenes"], *(s.model_dump(mode="json", include={"id", "title", "layout"}) for s in more.scenes)]
+        yield _plan_event(head)
+
+        written: dict[int, object] = dict(enumerate(lesson.scenes))
+        async for e in _write_scenes(question, route, plan, written, len(lesson.scenes), usage, tally):
+            yield e
+    except UnexpectedModelBehavior as e:
+        log.warning("go deeper failed for %r: %s", question, e)
+        yield event("error", message=FAILED_DEEPER)
+        return
+
+    extended = assemble(question, route, plan, [written[j] for j in range(len(plan.scenes))])
+    if errors := [str(i) for i in lint_lesson(extended) if i.level == "error"]:
+        log.warning("lesson-level lint failed going deeper on %r: %s", question, errors)
+        yield event("error", message=FAILED_DEEPER)
+        return
+    _log_usage("go deeper", question, usage, tally["retries"])
+    yield event("done", lesson=extended.model_dump(mode="json"))
