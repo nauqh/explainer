@@ -1,4 +1,4 @@
-/** Client for POST /lessons, which answers with Server-Sent Events (contract: backend/README.md). */
+/** Client for POST /lessons, which answers with Server-Sent Events (contract: the API section of the root README.md). */
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 

@@ -2,7 +2,6 @@
 name = "explainer"
 version = "0.1.0"
 description = "AI concept explainer: lesson schema, widget catalog, linter and generation"
-readme = "README.md"
 authors = [
     { name = "nauqh", email = "hodominhquan.work@gmail.com" }
 ]
