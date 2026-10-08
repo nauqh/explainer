@@ -11,7 +11,6 @@ export type Concept = string;
 export type Focus = string;
 export type Level = "beginner" | "intermediate" | "advanced";
 export type Timesensitive = boolean;
-export type Mode = "auto" | "scrolly" | "stepper";
 /**
  * @minItems 1
  */
@@ -40,7 +39,14 @@ export type Scenes = [ScrollyScene | ExploreScene | StackScene, ...(ScrollyScene
 export type Layout = "scrolly";
 export type Id4 = string;
 export type Title1 = string;
-export type Visual = DiagramVisual | SequenceVisual | CompareVisual | FunctionPlotVisual | MatrixVisual;
+export type Visual =
+  | DiagramVisual
+  | SequenceVisual
+  | CompareVisual
+  | FunctionPlotVisual
+  | MatrixVisual
+  | DistributionVisual
+  | PointCloudVisual;
 export type Widget = "Diagram";
 /**
  * @minItems 2
@@ -169,6 +175,47 @@ export type Actual = [number, ...number[]];
  * @maxItems 200
  */
 export type Predicted = [number, ...number[]];
+export type Widget5 = "Distribution";
+/**
+ * One per option, e.g. candidate next tokens.
+ *
+ * @minItems 2
+ * @maxItems 12
+ */
+export type Labels = [string, string, ...string[]];
+/**
+ * Illustrative raw scores, one per label. The browser computes probabilities.
+ */
+export type Logits = number[];
+/**
+ * Index of the correct label, for cross-entropy. Optional.
+ */
+export type Target = number | null;
+export type Widget6 = "PointCloud";
+/**
+ * blobs/moons/circles/xor are labelled classes; line/curve are regression data (classes 1).
+ */
+export type Shape = "blobs" | "moons" | "circles" | "xor" | "line" | "curve";
+/**
+ * Number of points; a random quarter of them is held out as test data.
+ */
+export type N = number;
+export type Noise = number;
+/**
+ * 1 for line/curve; 2 for moons/circles/xor; 2 or 3 for blobs.
+ */
+export type Classes1 = number;
+/**
+ * Same seed, same points, for every learner.
+ */
+export type Seed = number;
+export type Xlabel = string;
+export type Ylabel = string;
+/**
+ * One short name per class, e.g. ['spam', 'not spam'].
+ */
+export type Classlabels = string[];
+export type Model = "none" | "linear" | "polynomial" | "logistic" | "knn" | "kmeans";
 /**
  * @minItems 1
  * @maxItems 8
@@ -176,7 +223,7 @@ export type Predicted = [number, ...number[]];
 export type Steps = [Step, ...Step[]];
 export type Id11 = string;
 /**
- * At most 40 words. Markup: [[part:id|label]], [[term:id|label]], [[source:id|label]], {stateKey}.
+ * 30 to 80 words, one idea. Markup: [[part:id|label]], [[term:id|label]], [[source:id|label]], {stateKey} prints a state value, {fact:name} prints a value the widget computed.
  */
 export type Text3 = string;
 /**
@@ -187,10 +234,31 @@ export type Highlight = string[];
  * Key point ids.
  */
 export type Covers = string[];
+/**
+ * A part id of the scene's widget; the note is drawn next to it.
+ */
+export type Anchor = string;
+/**
+ * Plain text; may print {fact:name} or {stateKey}.
+ */
+export type Text4 = string;
+/**
+ * Short notes pinned to widget parts.
+ *
+ * @maxItems 3
+ */
+export type Annotate = Annotation[];
 export type Layout1 = "explore";
 export type Id12 = string;
 export type Title3 = string;
-export type Visual1 = DiagramVisual | SequenceVisual | CompareVisual | FunctionPlotVisual | MatrixVisual;
+export type Visual1 =
+  | DiagramVisual
+  | SequenceVisual
+  | CompareVisual
+  | FunctionPlotVisual
+  | MatrixVisual
+  | DistributionVisual
+  | PointCloudVisual;
 export type Kind = "slider";
 export type Key = string;
 export type Label9 = string;
@@ -216,9 +284,9 @@ export type Title4 = string;
 /**
  * @minItems 1
  */
-export type Blocks = [Prose | Cards | Predict | Sort | Recall, ...(Prose | Cards | Predict | Sort | Recall)[]];
+export type Blocks = [Prose | Cards | Predict | Sort, ...(Prose | Cards | Predict | Sort)[]];
 export type Type = "prose";
-export type Text4 = string;
+export type Text5 = string;
 export type Covers1 = string[];
 export type Type1 = "cards";
 /**
@@ -265,13 +333,6 @@ export type Hint1 = string;
 export type Explanation1 = string;
 export type Misconception2 = string;
 export type Covers4 = string[];
-export type Type4 = "recall";
-export type Prompt = string;
-/**
- * @minItems 1
- */
-export type Keypoints1 = [string, ...string[]];
-export type Minwords = number;
 
 export interface Lesson {
   schemaVersion: Schemaversion;
@@ -280,7 +341,6 @@ export interface Lesson {
   focus: Focus;
   level: Level;
   timeSensitive: Timesensitive;
-  mode: Mode;
   keyPoints: Keypoints;
   misconceptions: Misconceptions;
   sources: Sources1;
@@ -421,6 +481,33 @@ export interface ConfusionRecipe {
   actual: Actual;
   predicted: Predicted;
 }
+export interface DistributionVisual {
+  widget: Widget5;
+  props: DistributionProps;
+}
+export interface DistributionProps {
+  labels: Labels;
+  logits: Logits;
+  target: Target;
+}
+export interface PointCloudVisual {
+  widget: Widget6;
+  props: PointCloudProps;
+}
+export interface PointCloudProps {
+  dataset: Dataset;
+  xLabel: Xlabel;
+  yLabel: Ylabel;
+  classLabels: Classlabels;
+  model: Model;
+}
+export interface Dataset {
+  shape: Shape;
+  n: N;
+  noise: Noise;
+  classes: Classes1;
+  seed: Seed;
+}
 /**
  * Default value for every state key the widget reads.
  */
@@ -433,12 +520,17 @@ export interface Step {
   set: Set;
   highlight: Highlight;
   covers: Covers;
+  annotate: Annotate;
 }
 /**
  * State changes on top of the scene defaults; not accumulated from earlier steps.
  */
 export interface Set {
   [k: string]: boolean | number | string | null;
+}
+export interface Annotation {
+  anchor: Anchor;
+  text: Text4;
 }
 export interface ExploreScene {
   layout: Layout1;
@@ -477,7 +569,7 @@ export interface StackScene {
 }
 export interface Prose {
   type: Type;
-  text: Text4;
+  text: Text5;
   covers: Covers1;
 }
 export interface Cards {
@@ -510,10 +602,4 @@ export interface Sort {
   explanation: Explanation1;
   misconception: Misconception2;
   covers: Covers4;
-}
-export interface Recall {
-  type: Type4;
-  prompt: Prompt;
-  keyPoints: Keypoints1;
-  minWords: Minwords;
 }

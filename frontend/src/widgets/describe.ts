@@ -3,11 +3,14 @@
 // The same functions give every widget its text alternative.
 
 import { compile } from "@/lib/expr";
+import { analyse } from "@/lib/pointcloud";
 import type {
   CompareProps,
   DiagramProps,
+  DistributionProps,
   FunctionPlotProps,
   MatrixVisual,
+  PointCloudProps,
   SequenceProps,
   State,
   Visual,
@@ -152,6 +155,115 @@ export function describeMatrix(props: MatrixProps, state: State): string[] {
   return lines;
 }
 
+export type Dist = {
+  /** Probability per label, softmax(logits / temperature). */
+  probs: number[];
+  /** Label indices from highest to lowest logit. Temperature never changes this order. */
+  order: number[];
+  /** Whether top-k and top-p would keep each label for sampling. */
+  kept: boolean[];
+};
+
+/** Probabilities and the sampling cutoff. The model gives logits; these numbers are computed here. */
+export function computeDistribution(props: DistributionProps, state: State): Dist {
+  const t = Math.max(Number(state.temperature ?? 1), 1e-6);
+  const z = props.logits.map((l) => l / t);
+  const m = Math.max(...z);
+  const e = z.map((v) => Math.exp(v - m));
+  const sum = e.reduce((a, b) => a + b, 0);
+  const probs = e.map((v) => v / sum);
+  const order = props.logits.map((_, i) => i).sort((a, b) => props.logits[b] - props.logits[a] || a - b);
+  const k = Number(state.topK ?? props.labels.length);
+  const p = Number(state.topP ?? 1);
+  const kept = Array<boolean>(probs.length).fill(false);
+  let mass = 0;
+  order.forEach((i, rank) => {
+    // Nucleus: keep labels until the kept mass reaches p (the label that crosses p is kept).
+    if (rank < k && (rank === 0 || mass < p - 1e-9)) kept[i] = true;
+    mass += probs[i];
+  });
+  return { probs, order, kept };
+}
+
+const pct = (p: number) => (p > 0 && p < 0.005 ? "under 1%" : `${Math.round(p * 100)}%`);
+
+export function describeDistribution(props: DistributionProps, state: State): string[] {
+  const { probs, order, kept } = computeDistribution(props, state);
+  const logits = state.view === "logits";
+  const dropped = order.filter((i) => !kept[i]).map((i) => props.labels[i]);
+  return [
+    logits
+      ? `raw scores (logits) for ${props.labels.length} options: ${order.map((i) => `${props.labels[i]} ${fmt(props.logits[i])}`).join(", ")}`
+      : `probabilities at temperature ${fmt(Number(state.temperature ?? 1))}: ${order.map((i) => `${props.labels[i]} ${pct(probs[i])}`).join(", ")}`,
+    `most likely: ${props.labels[order[0]]}`,
+    dropped.length ? `sampling would drop ${dropped.join(", ")}` : "sampling keeps every option",
+    ...(props.target != null ? [`correct answer: ${props.labels[props.target]}, probability ${pct(probs[props.target])}`] : []),
+  ];
+}
+
+export function describePointCloud(props: PointCloudProps, state: State): string[] {
+  const a = analyse(props, state);
+  const d = props.dataset;
+  const nTest = a.pts.filter((p) => p.test).length;
+  const show = String(state.show ?? "points"), split = String(state.split ?? "all");
+  const lines = [
+    `scatter of ${d.n} points (${d.n - nTest} training, ${nTest} test) shaped as ${d.shape}, ${props.xLabel} against ${props.yLabel}`,
+    `showing ${split === "all" ? "all points" : `${split} points only`}${show === "points" ? "" : show === "fit" ? " with the fitted model" : " with the model and its errors"}`,
+  ];
+  if (a.kind === "regression") {
+    const deg = props.model === "linear" ? 1 : Number(state.degree ?? 1);
+    lines.push(`${deg === 1 ? "straight line" : `degree ${deg} polynomial`} fitted to the training points`,
+      `mean squared error: training ${a.trainError.toFixed(3)}, test ${a.testError.toFixed(3)}`);
+  } else if (a.kind === "classification") {
+    lines.push(props.model === "logistic" ? `logistic regression after ${Number(state.iteration ?? 0)} training steps, threshold ${fmt(Number(state.threshold ?? 0.5))}` : `k nearest neighbours with k = ${Number(state.k ?? 5)}`,
+      `accuracy: training ${pct(a.trainAccuracy)}, test ${pct(a.testAccuracy)}`);
+  } else if (a.kind === "clustering") {
+    lines.push(`k-means with ${Number(state.k ?? 3)} clusters after ${Number(state.iteration ?? 0)} updates, total squared distance ${a.loss.toFixed(2)}`);
+  }
+  return lines;
+}
+
+/** Named values a step can print with {fact:name}. Each widget declares its names in the backend catalog. */
+export function facts(visual: Visual, state: State): Record<string, string> {
+  if (visual.widget === "Distribution") {
+    const props = visual.props;
+    const { probs, order, kept } = computeDistribution(props, state);
+    const entropy = -probs.reduce((a, p) => a + (p > 0 ? p * Math.log2(p) : 0), 0);
+    const target = props.target != null ? probs[props.target] : null;
+    return {
+      topLabel: props.labels[order[0]],
+      topProb: pct(probs[order[0]]),
+      entropy: `${entropy.toFixed(2)} bits`,
+      kept: String(kept.filter(Boolean).length),
+      targetProb: target == null ? "n/a" : pct(target),
+      crossEntropy: target == null ? "n/a" : (-Math.log(target)).toFixed(2),
+    };
+  }
+  if (visual.widget === "PointCloud") {
+    const a = analyse(visual.props, state);
+    const split = String(state.split ?? "all");
+    // Small errors need decimals; an exploding high-degree fit does not.
+    const err = (e: number) => (e < 10 ? e.toFixed(3) : e < 1000 ? e.toFixed(1) : Math.round(e).toLocaleString("en"));
+    if (a.kind === "regression") return { trainError: err(a.trainError), testError: err(a.testError) };
+    if (a.kind === "classification") {
+      const wrong = a.pts.filter((p, i) => a.wrong[i] && (split === "all" || (split === "test") === p.test)).length;
+      return {
+        trainAccuracy: pct(a.trainAccuracy), testAccuracy: pct(a.testAccuracy), misclassified: String(wrong),
+        loss: a.loss == null ? "n/a" : a.loss.toFixed(3),
+      };
+    }
+    if (a.kind === "clustering") return { loss: a.loss.toFixed(2) };
+    return {};
+  }
+  if (visual.widget === "Matrix") {
+    const g = computeMatrix(visual.props);
+    const m = /^cell-(\d+)-(\d+)$/.exec(String(state.selected ?? ""));
+    const v = m ? g.values[+m[1]]?.[+m[2]] : undefined;
+    return { selectedValue: v == null ? "n/a" : visual.props.recipe === "softmax" ? pct(v) : fmt(v) };
+  }
+  return {};
+}
+
 export function describe(visual: Visual, state: State): string[] {
   switch (visual.widget) {
     case "Diagram": return describeDiagram(visual.props, state);
@@ -159,5 +271,7 @@ export function describe(visual: Visual, state: State): string[] {
     case "Compare": return describeCompare(visual.props, state);
     case "FunctionPlot": return describeFunctionPlot(visual.props, state);
     case "Matrix": return describeMatrix(visual.props, state);
+    case "Distribution": return describeDistribution(visual.props, state);
+    case "PointCloud": return describePointCloud(visual.props, state);
   }
 }

@@ -25,7 +25,7 @@ export function Sequence({ props, state, highlight, onPart }: WidgetProps<Sequen
       {props.actors.map((a) => {
         const lit = highlight.has(a.id);
         return (
-          <g key={a.id} onClick={() => onPart(a.id)} className="cursor-pointer">
+          <g key={a.id} data-part={a.id} onClick={() => onPart(a.id)} className="cursor-pointer">
             <line x1={x(a.id)} x2={x(a.id)} y1={TOP} y2={height - 8} stroke="var(--rule)" strokeDasharray="4 4" />
             <rect x={x(a.id) - 62} y={8} width={124} height={34} rx={17}
               fill={lit ? "var(--marker-soft)" : "var(--plate)"} stroke={lit ? "var(--marker)" : "var(--ink)"} strokeWidth={lit ? 2.5 : 1.2} />
@@ -46,7 +46,7 @@ export function Sequence({ props, state, highlight, onPart }: WidgetProps<Sequen
           ? `M${x1},${y} h40 v18 h-38`
           : `M${x1},${y} L${x2 + (x2 > x1 ? -4 : 4)},${y}`;
         return (
-          <motion.g key={m.id} initial={false} onClick={() => onPart(m.id)} className="cursor-pointer"
+          <motion.g key={m.id} initial={false} data-part={m.id} onClick={() => onPart(m.id)} className="cursor-pointer"
             animate={{ opacity: i < shown ? 1 : 0, x: i < shown ? 0 : -6 }} transition={t}>
             {lit && <rect x={Math.min(x1, x2) + 6} y={y - 24} width={Math.abs(x2 - x1) - 12 || 120} height={16} fill="var(--marker-soft)" rx={3} />}
             <path d={d} fill="none" stroke={latest ? "var(--cobalt)" : "var(--ink)"} strokeWidth={latest || lit ? 2.2 : 1.3} markerEnd="url(#sq-arrow)" />

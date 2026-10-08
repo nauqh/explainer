@@ -17,14 +17,14 @@ export function Controls({ scene }: { scene: ExploreScene }) {
           <div key={c.key} className="flex flex-col gap-2">
             <label htmlFor={id} className="flex items-baseline justify-between text-sm font-medium">
               {c.label}
-              {c.kind === "slider" && <span className="tabular-nums text-cobalt">{Number(value).toFixed(2)}</span>}
+              {c.kind === "slider" && <span className="rounded bg-cobalt-soft px-1.5 tabular-nums text-cobalt">{Number.isInteger(Number(value)) ? String(value) : Number(value).toFixed(2)}</span>}
             </label>
             {c.kind === "slider" ? (
               <input id={id} type="range" min={c.min} max={c.max} step={c.step ?? (c.max - c.min) / 100} value={Number(value)}
                 onChange={(e) => patch(scene.id, { [c.key]: Number(e.target.value) })} className="accent-[var(--cobalt)]" />
             ) : (
               <select id={id} value={JSON.stringify(value)} onChange={(e) => patch(scene.id, { [c.key]: JSON.parse(e.target.value) })}
-                className="rounded-md border border-rule bg-plate px-3 py-2">
+                className="rounded-lg border border-rule bg-plate px-3 py-2 text-[0.95rem] hover:border-ink-soft">
                 {c.options.map((o) => (
                   <option key={JSON.stringify(o)} value={JSON.stringify(o)}>{o === null ? "None" : String(o)}</option>
                 ))}
@@ -46,7 +46,7 @@ export function ReplayButton({ scene, step }: { scene: ScrollyScene; step: numbe
   };
   return (
     <button type="button" onClick={replay}
-      className="mt-3 inline-flex items-center gap-1.5 rounded-sm font-sans text-sm text-ink-soft hover:text-ink">
+      className="mt-3 inline-flex items-center gap-1.5 rounded-sm font-sans text-sm text-ink-soft hover:text-cobalt">
       <svg aria-hidden width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
         <path d="M2.5 8a5.5 5.5 0 1 0 1.8-4.1" /><path d="M2.5 2.5v3.5H6" />
       </svg>

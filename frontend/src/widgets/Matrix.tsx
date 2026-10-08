@@ -3,11 +3,13 @@
 import { motion } from "motion/react";
 import type { MatrixVisual } from "@/lib/lesson";
 import { computeMatrix } from "./describe";
+import { useMorph } from "@/lib/motion";
 import type { WidgetProps } from "./Widget";
 
 const CELL = 64, LEFT = 96, TOP = 40;
 
 export function Matrix({ props, state, highlight, onPart }: WidgetProps<MatrixVisual["props"]>) {
+  const morph = useMorph();
   const g = computeMatrix(props);
   const flat = g.values.flat();
   const lo = Math.min(0, ...flat), hi = Math.max(...flat);
@@ -19,13 +21,13 @@ export function Matrix({ props, state, highlight, onPart }: WidgetProps<MatrixVi
     <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto max-h-full" style={{ maxWidth: width * 1.3 }} aria-hidden>
       {g.cols.map((c, j) => (
         <text key={`c${j}`} x={LEFT + j * CELL + CELL / 2} y={TOP - 12} textAnchor="middle" fontSize={13} className="font-sans cursor-pointer"
-          fontWeight={highlight.has(`col-${j}`) ? 700 : 500} fill="var(--ink)" onClick={() => onPart(`col-${j}`)}>
+          fontWeight={highlight.has(`col-${j}`) ? 700 : 500} fill="var(--ink)" data-part={`col-${j}`} onClick={() => onPart(`col-${j}`)}>
           {c}
         </text>
       ))}
       {g.rows.map((r, i) => (
         <text key={`r${i}`} x={LEFT - 12} y={TOP + i * CELL + CELL / 2 + 5} textAnchor="end" fontSize={13} className="font-sans cursor-pointer"
-          fontWeight={highlight.has(`row-${i}`) ? 700 : 500} fill="var(--ink)" onClick={() => onPart(`row-${i}`)}>
+          fontWeight={highlight.has(`row-${i}`) ? 700 : 500} fill="var(--ink)" data-part={`row-${i}`} onClick={() => onPart(`row-${i}`)}>
           {r}
         </text>
       ))}
@@ -35,8 +37,8 @@ export function Matrix({ props, state, highlight, onPart }: WidgetProps<MatrixVi
           const id = `cell-${i}-${j}`;
           const a = level(v);
           return (
-            <g key={id} onClick={() => onPart(id)} className="cursor-pointer">
-              <motion.rect initial={false} animate={{ fillOpacity: 0.08 + a * 0.85 }} transition={{ duration: 0.4 }}
+            <g key={id} data-part={id} onClick={() => onPart(id)} className="cursor-pointer">
+              <motion.rect initial={false} animate={{ fillOpacity: 0.08 + a * 0.85 }} transition={morph}
                 x={LEFT + j * CELL + 2} y={TOP + i * CELL + 2} width={CELL - 4} height={CELL - 4} rx={4} fill="var(--cobalt)" />
               <text x={LEFT + j * CELL + CELL / 2} y={TOP + i * CELL + CELL / 2 + 5} textAnchor="middle" fontSize={14}
                 className="font-sans tabular-nums" fill={a > 0.55 ? "#fff" : "var(--ink)"} fontWeight={state.selected === id ? 700 : 500}>

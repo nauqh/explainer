@@ -15,7 +15,7 @@ export function Compare({ props, state, highlight, onPart }: WidgetProps<Compare
         <tr>
           <th className="w-[28%]" />
           {props.columns.map((c) => (
-            <th key={c.id} scope="col" onClick={() => onPart(c.id)}
+            <th key={c.id} scope="col" data-part={c.id} onClick={() => onPart(c.id)}
               className={`cursor-pointer border-b-2 px-3 py-2 text-left align-bottom transition-colors duration-300 ${tone(c.id)} ${
                 state.highlight === c.id ? "border-cobalt" : "border-ink"
               } ${strong(c.id) || "font-medium"}`}>

@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
-import { Instrument_Sans, Literata } from "next/font/google";
+import { Bricolage_Grotesque, Literata } from "next/font/google";
+import { SmoothScroll } from "@/components/SmoothScroll";
 import "./globals.css";
 
 const literata = Literata({ variable: "--font-literata", subsets: ["latin"], style: ["normal", "italic"] });
-const instrument = Instrument_Sans({ variable: "--font-instrument", subsets: ["latin"] });
+// Display, interface and chart labels. Its width axis gives the hero its condensed setting.
+const bricolage = Bricolage_Grotesque({ variable: "--font-bricolage", subsets: ["latin"], axes: ["opsz", "wdth"] });
 
 export const metadata: Metadata = {
   title: "Concept Explainer",
@@ -12,8 +14,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${literata.variable} ${instrument.variable} antialiased`}>
-      <body className="min-h-dvh">{children}</body>
+    <html lang="en" className={`${literata.variable} ${bricolage.variable} antialiased`}>
+      <body className="min-h-dvh">
+        <SmoothScroll>{children}</SmoothScroll>
+      </body>
     </html>
   );
 }

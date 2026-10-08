@@ -1,20 +1,27 @@
 "use client";
 
 import { useId, useRef, type ReactNode, type ToggleEvent } from "react";
+import type { State } from "@/lib/lesson";
 import { useLesson } from "@/lib/store";
+import { facts } from "@/widgets/describe";
 import { useLessonData } from "./LessonData";
 
-const MARKUP = /\[\[(part|term|source):([^|\]]+)\|([^\]]+)\]\]|\{(\w+)\}/g;
+const MARKUP = /\[\[(part|term|source):([^|\]]+)\|([^\]]+)\]\]|\{fact:(\w+)\}|\{(\w+)\}/g;
 
-/** Renders step and block text with part links, glossary terms, source refs and live values. */
-export function Markup({ text, sceneId }: { text: string; sceneId: string }) {
+/**
+ * Renders step and block text with part links, glossary terms, source refs and values.
+ * `state` pins values to one step's own state, so a paragraph read ahead of the trigger line
+ * still shows its own numbers; without it, values follow the live widget (explore scenes).
+ */
+export function Markup({ text, sceneId, state }: { text: string; sceneId: string; state?: State }) {
   const out: ReactNode[] = [];
   let last = 0;
   for (const m of text.matchAll(MARKUP)) {
     out.push(text.slice(last, m.index));
-    const [, kind, id, label, stateKey] = m;
+    const [, kind, id, label, fact, stateKey] = m;
     const key = m.index;
-    if (stateKey) out.push(<Value key={key} sceneId={sceneId} stateKey={stateKey} />);
+    if (fact) out.push(<Fact key={key} sceneId={sceneId} name={fact} pinned={state} />);
+    else if (stateKey) out.push(<Value key={key} sceneId={sceneId} stateKey={stateKey} pinned={state} />);
     else if (kind === "part") out.push(<PartLink key={key} sceneId={sceneId} partId={id} label={label} />);
     else if (kind === "term") out.push(<Term key={key} termId={id} label={label} />);
     else out.push(<SourceRef key={key} sourceId={id} label={label} />);
@@ -34,10 +41,19 @@ function PartLink({ sceneId, partId, label }: { sceneId: string; partId: string;
   );
 }
 
-function Value({ sceneId, stateKey }: { sceneId: string; stateKey: string }) {
-  const v = useLesson((s) => s.states[sceneId]?.[stateKey]);
+function Value({ sceneId, stateKey, pinned }: { sceneId: string; stateKey: string; pinned?: State }) {
+  const live = useLesson((s) => s.states[sceneId]?.[stateKey]);
+  const v = pinned ? pinned[stateKey] : live;
   const shown = typeof v === "number" && !Number.isInteger(v) ? v.toFixed(2) : String(v ?? "");
   return <span className="mk-value">{shown}</span>;
+}
+
+/** A value the scene's widget computed (never typed by the model), live as the state changes. */
+function Fact({ sceneId, name, pinned }: { sceneId: string; name: string; pinned?: State }) {
+  const scene = useLessonData().scenes.find((s) => s.id === sceneId);
+  const live = useLesson((s) => s.states[sceneId]);
+  if (!scene || !("visual" in scene)) return null;
+  return <span className="mk-value">{facts(scene.visual, pinned ?? live ?? scene.state)[name] ?? ""}</span>;
 }
 
 function Term({ termId, label }: { termId: string; label: string }) {
